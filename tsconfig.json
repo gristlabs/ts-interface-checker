@@ -1,0 +1,15 @@
+{
+  "compilerOptions": {
+    "target": "es2016",
+    "strict": true,
+    "noUnusedLocals": true,
+    "module": "commonjs",
+    "baseUrl": ".",
+    "outDir": "dist",
+    "declaration": true
+  },
+  "files": [
+    "lib/types.ts",
+    "lib/validate.ts"
+  ]
+}

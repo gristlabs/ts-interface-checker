@@ -1,0 +1,33 @@
+{
+  "name": "ts-interface-checker",
+  "version": "0.1.0",
+  "description": "Runtime library to validate data against TypeScript interfaces",
+  "main": "dist/index",
+  "typings": "dist/index",
+  "scripts": {
+    "build": "tsc",
+    "watch": "tsc -w",
+    "test": "tsc && mocha -R list test/"
+  },
+  "keywords": [
+    "typescript",
+    "ts",
+    "interface",
+    "type",
+    "validate",
+    "validator",
+    "check"
+  ],
+  "author": "Dmitry S, Grist Labs",
+  "license": "Apache-2.0",
+  "dependencies": {},
+  "devDependencies": {
+    "@types/chai": "^4.0.8",
+    "@types/mocha": "^2.2.44",
+    "@types/node": "^8.0.57",
+    "chai": "^4.1.2",
+    "mocha": "^3.5.3",
+    "ts-node": "^4.0.1",
+    "typescript": "^2.6.2"
+  }
+}
