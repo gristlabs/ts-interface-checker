@@ -6,7 +6,7 @@
     "jsRules": {},
     "rules": {
         "object-literal-sort-keys": false,
-        "variable-name": [true, "ban-keywords", "check-format", "allow-leading-underscore"],
+        "variable-name": [true, "ban-keywords", "check-format", "allow-leading-underscore", "allow-pascal-case"],
         "max-classes-per-file": false
     },
     "rulesDirectory": []

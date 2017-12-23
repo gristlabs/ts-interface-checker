@@ -168,7 +168,8 @@ export class TIface extends TType {
       // In strict mode, check also for unknown enumerable properties.
       for (const prop in value) {
         if (!this.propSet.has(prop)) {
-          ctx.fail(`has invalid property ${prop}`);
+          ctx.propPush(prop);
+          ctx.fail("is extraneous");
         }
       }
     }
