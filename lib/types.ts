@@ -1,228 +1,264 @@
 /**
- * This module provides a concise way to define types of objects and interfaces, to be available
- * at runtime, from which we build validation functions.
+ * This module defines nodes used to define types and validations for objects and interfaces.
  */
-// tslint:disable:max-classes-per-file
+// tslint:disable:no-shadowed-variable
 
-// TODO: Return values of methods for APIs would normally be Promises. We need to either mark them
-// explicitly when defining an interface, or (as seems better) generate promises by default when
-// generating Typescript. Validations would run on resolved values, so don't matter.
-// TODO: For RPC, we'd need to add a type alias `nowait` = `void`, which would NOT be turned into
-// a promise, so that RPC can treat it as a void method. (That's a poor name, maybe just call it
-// "nowait" method.)
+import {ICheckFailReporter, VContext} from "./util";
+
+/** Base Node. */
+export class TNode {}
+
+/** Node that represents a type. */
+export abstract class TType extends TNode implements ICheckFailReporter {
+  public abstract ctxCheck(ctx: VContext, value: any): void;
+  public ctxFailMessage(): string|null { return null; }
+}
 
 /**
- * A suite is parsed into a tree consisting of the following nodes that represent the types.
+ * Descriptor from which TType may be build (by parseSpec()). A plain string is equivalent to
+ * name(string).
  */
-export abstract class TNode {
-  public parent: TNode;
+export type TypeSpec = TType | string;
+
+/** Parses a type spec into a TType node. */
+function parseSpec(typeSpec: TypeSpec): TType {
+  return typeof typeSpec === "string" ? name(typeSpec) : typeSpec;
 }
-export abstract class TType extends TNode {
+
+/**
+ * Represents a suite of named types. Suites are used to resolve type names.
+ */
+export interface ITypeSuite {
+  [name: string]: TType;
 }
+
+/**
+ * Defines a type name, either built-in, or defined in this suite. It can typically be included in
+ * the specs as just a plain string.
+ */
+export function name(value: string): TName { return new TName(value); }
 export class TName extends TType {
   constructor(public name: string) { super(); }
-}
-export class TLiteral extends TType {
-  constructor(public value: any) { super(); }
-}
-export class TIface extends TType {
-  constructor(public bases: string[], public props: TProp[]) { super(); }
-}
-export class TProp extends TNode {
-  constructor(public name: string, public ttype: TType, public isOpt: boolean = false) { super(); }
-}
-export class TFunc extends TType {
-  constructor(public args: TArg[], public result: TType) { super(); }
-}
-export class TArg extends TNode {
-  constructor(public name: string, public ttype: TType, public isOpt: boolean, public defl?: any) {
-    super();
+
+  public ctxCheck(ctx: VContext, value: any): void {
+    ctx.setMessage(this);
+    ctx.getNamedType(this.name).ctxCheck(ctx, value);
   }
-}
-export class TTuple extends TType {
-  constructor(public ttypes: TType[]) { super(); }
-}
-export class TArray extends TType {
-  constructor(public ttype: TType) { super(); }
-}
-export class TUnion extends TType {
-  constructor(public ttypes: TType[]) { super(); }
-}
-
-
-/**
- * Defines a type name, either built-in, or defined in this suite.
- */
-export function name(value: string): TName {
-  return new TName(value);
+  public ctxFailMessage() {
+    return `is not a ${this.name}`;
+  }
 }
 
 /**
  * Defines a literal value, e.g. lit('hello') or lit(123).
  */
-export function lit(value: any): TLiteral {
-  return new TLiteral(value);
+export function lit(value: any): TLiteral { return new TLiteral(value); }
+export class TLiteral extends TType {
+  constructor(public value: any) { super(); }
+
+  public ctxCheck(ctx: VContext, value: any): void {
+    ctx.assert(value === this.value, this);
+  }
+  public ctxFailMessage() {
+    return `is not ${JSON.stringify(this.value)}`;
+  }
 }
 
 /**
  * Defines an array type, e.g. array('number').
  */
-export function array(typeSpec: any): TArray {
-  const ttype = parseSpec(typeSpec);
-  return _setAsParent(new TArray(ttype), ttype);
+export function array(typeSpec: TypeSpec): TArray { return new TArray(parseSpec(typeSpec)); }
+export class TArray extends TType {
+  constructor(public ttype: TType) { super(); }
+
+  public ctxCheck(ctx: VContext, value: any): void {
+    ctx.assert(Array.isArray(value), "is not an array");
+    ctx.cyclePush(value);
+    ctx.propPush(0);
+    for (let i = 0; i < value.length; i++) {
+      ctx.propSet(i);
+      this.ttype.ctxCheck(ctx, value[i]);
+    }
+    ctx.propPop();
+    ctx.cyclePop(value);
+  }
 }
 
 /**
  * Defines a tuple type, e.g. tuple('string', 'number').
  */
-export function tuple(...typeSpec: any[]): TTuple {
-  const ttypes = typeSpec.map(t => parseSpec(t));
-  return _setAsParent(new TTuple(ttypes), ...ttypes);
+export function tuple(...typeSpec: TypeSpec[]): TTuple {
+  return new TTuple(typeSpec.map((t) => parseSpec(t)));
+}
+export class TTuple extends TType {
+  constructor(public ttypes: TType[]) { super(); }
+
+  public ctxCheck(ctx: VContext, value: any): void {
+    ctx.assert(Array.isArray(value), "is not an array");
+    if (ctx.strict) {
+      ctx.assert(value.length === this.ttypes.length, "has incorrect length");
+    }
+    ctx.cyclePush(value);
+    ctx.propPush(0);
+    for (let i = 0; i < this.ttypes.length; i++) {
+      ctx.propSet(i);
+      this.ttypes[i].ctxCheck(ctx, value[i]);
+    }
+    ctx.propPop();
+    ctx.cyclePop(value);
+  }
 }
 
 /**
  * Defines a union type, e.g. union('number', 'null').
  */
-export function union(...typeSpec: any[]): TUnion {
-  const ttypes = typeSpec.map(t => parseSpec(t));
-  return _setAsParent(new TUnion(ttypes), ...ttypes);
+export function union(...typeSpec: TypeSpec[]): TUnion {
+  return new TUnion(typeSpec.map((t) => parseSpec(t)));
 }
+export class TUnion extends TType {
+  constructor(public ttypes: TType[]) { super(); }
 
-
-
-
-
-
-export interface Suite {
-  [name: string]: TType;
-}
-
-/**
- * suite() declares a set of types. Note that a suite should include all types referenced inside
- * it. E.g. if the suite lists an interface 'Foo' which refers to type 'Bar', then type 'Bar'
- * should also be included in the suite.
- */
-export function suite(props: {[name: string]: any}): Suite {
-  const ret: Suite = {};
-  for (const name in props) {
-    ret[name] = parseSpec(props[name]);
-  }
-  return ret;
-}
-
-/**
- * Defines an interface that extends one or more other interfaces, passed in as an array in the
- * first argument. If there is nothing to extend, an interface is specified with just an object.
- */
-export function iface(bases: string[], props: {[key: string]: any}): TIface {
-  return _iface(bases, props);
-}
-
-/**
- * Defines a function. The arguments declare the function's parameters, as {argName: argType}
- * (e.g. {price: 'number'}). The last argument declares the function's return value, and must be
- * in the form {'=>': returnType}, i.e. the key must be the literal string '=>'.
- */
-export function func(argSpecObjs: Array<{[name: string]: any}>, resultSpec: any): TFunc {
-  // const argSpecs = argSpecObjs.map(obj => argSpecParse(obj));
-  const result = parseSpec(resultSpec);
-  const args: TArg[] = []; // argSpecs.map(a => _funcArg(a));
-  return _setAsParent(new TFunc(args, result), result, ...args);
-}
-
-// Parses a type spec (programmer-friendly object) into a tree node.
-function parseSpec(typeSpec: any): TType {
-  if (typeSpec instanceof TNode) {
-    return typeSpec;
-  }
-  if (typeof typeSpec === 'string') {
-    return new TName(typeSpec);
-  }
-  if (typeSpec && typeof typeSpec === 'object' && typeSpec.constructor === Object) {
-    return _iface([], typeSpec);
-  }
-  throw new Error(`Invalid type spec: ${typeSpec}`);
-}
-
-// Function args, for conciseness, are specified as `{argName: argType}`. We convert them to
-// ArgSpecs during internal processing.
-/*
-interface ArgSpec {
-  name: string;
-  value: any;
-  isOpt: boolean;
-  defl: any;
-}
-*/
-
-// Parses arg specs of the form {argName: argType}, e.g. {price: 'number'}.
-/*
-function argSpecParse(obj): ArgSpec {
-  if (!obj || typeof obj !== 'object') {
-    throw new Error(`func arg spec not an object: ${obj}`);
-  }
-  const defl = obj._defl;
-  let count = 0;
-  let name: string|null = null;
-  for (const k in obj) {
-    if (k !== '_defl') { name = k; count++; }
-  }
-  if (!name || count !== 1) {
-    throw new Error(`func args spec should have a single prop: ${obj}`);
-  }
-  const isOpt = obj.hasOwnProperty('_defl') || name.endsWith('?');
-  return {name: trimRight(name, '?'), value: obj[name], isOpt, defl};
-}
-*/
-
-function trimRight(str: string, suffix: string): string {
-  return str.endsWith(suffix) ? str.slice(0, -suffix.length) : str;
-}
-
-// Helper for function arguments.
-/*
-function _funcArg(obj: ArgSpec) {
-  const ttype = parseSpec(obj.value);
-  return _setAsParent(new TArg(obj.name, ttype, obj.isOpt, obj.defl), ttype);
-}
-*/
-
-// Helper for interfaces.
-function _iface(bases: string[], props: {[key: string]: any}): TIface {
-  const tprops: TProp[] = [];
-  for (const key in props) {
-    const isOpt = key.endsWith('?');
-    tprops.push(new TProp(trimRight(key, '?'), parseSpec(props[key]), isOpt));
-  }
-  return _setAsParent(new TIface(bases, tprops), ...tprops.map(p => p.ttype));
-}
-
-// Helper that returns the given node after setting it as the parent to all the given children.
-function _setAsParent<T extends TNode>(node: T, ...children: TNode[]): T {
-  children.forEach(c => { c.parent = node; });
-  return node;
-}
-
-/**
- * Processors for TNodes can extend TNodeProcessor and implement all declared methods to process
- * all types of TNodes. This allows TypeScript to verify that you haven't forgotten anything, and
- * you get the `dispatch(tnode)` method which will call one of your `_proc*` methods.
- */
-export abstract class TNodeProcessor<T> {
-  protected dispatch(t: TNode, arg?: any): T {
-    const method = (this as any)['_proc' + t.constructor.name];
-    if (typeof method !== 'function') {
-      throw new Error(`Unknown TNode ${t}`);
+  public ctxCheck(ctx: VContext, value: any): void {
+    let message = "has no match";
+    for (const ttype of this.ttypes) {
+      try {
+        // We start a new context here for two reasons. One is to get a shorter message (relative
+        // to union's path), which we'll include. More importantly, any error may leave VContext
+        // in an inconsistent state (since we avoid `finally` clauses and only pop on success); so
+        // any VContext has to be discarded after an error.
+        return ttype.ctxCheck(ctx.makeNew(), value);
+      } catch (e) {
+        message += ", " + e.message;
+      }
     }
-    return method.call(this, t, arg);
+    ctx.fail(message);
   }
-  protected abstract _procTArg(t: TArg): T;
-  protected abstract _procTArray(t: TArray): T;
-  protected abstract _procTFunc(t: TFunc): T;
-  protected abstract _procTIface(t: TIface): T;
-  protected abstract _procTLiteral(t: TLiteral): T;
-  protected abstract _procTName(t: TName): T;
-  protected abstract _procTProp(t: TProp): T;
-  protected abstract _procTTuple(t: TTuple): T;
-  protected abstract _procTUnion(t: TUnion): T;
 }
+
+/**
+ * Defines an interface. The first argument is an array of interfaces that it extends, and the
+ * second is an array of properties.
+ */
+export function iface(bases: string[], props: TProp[]): TIface { return new TIface(bases, props); }
+export class TIface extends TType {
+  private propSet: Set<string>;
+  constructor(public bases: string[], public props: TProp[]) {
+    super();
+    this.propSet = new Set(props.map((p) => p.name));
+  }
+
+  public ctxCheck(ctx: VContext, value: any): void {
+    ctx.assert(value !== null && typeof value === "object", "is not an object");
+    ctx.cyclePush(value);
+    for (const base of this.bases) {
+      ctx.getNamedType(base).ctxCheck(ctx, value);
+    }
+    ctx.propPush("");
+    for (const prop of this.props) {
+      ctx.propSet(prop.name);
+      if (value[prop.name] === undefined) {
+        ctx.assert(prop.isOpt, "is missing");
+      } else {
+        prop.ttype.ctxCheck(ctx, value[prop.name]);
+      }
+    }
+    ctx.propPop();
+
+    if (ctx.strict) {
+      // In strict mode, check also for unknown enumerable properties.
+      for (const prop in value) {
+        if (!this.propSet.has(prop)) {
+          ctx.fail(`has invalid property ${prop}`);
+        }
+      }
+    }
+    ctx.cyclePop(value);
+  }
+}
+
+/**
+ * Defines a property in an interface.
+ */
+export function prop(name: string, typeSpec: TypeSpec, isOpt?: boolean): TProp {
+  return new TProp(name, parseSpec(typeSpec), Boolean(isOpt));
+}
+export class TProp extends TNode {
+  constructor(public name: string, public ttype: TType, public isOpt: boolean) { super(); }
+}
+
+/**
+ * Defines a function. The first argument declares the function's return type, the rest declare
+ * its parameters.
+ */
+export function func(resultSpec: TypeSpec, ...params: TParam[]): TFunc {
+  return new TFunc(new TParamList(params), parseSpec(resultSpec));
+}
+export class TFunc extends TType {
+  constructor(public paramList: TParamList, public result: TType) { super(); }
+
+  public ctxCheck(ctx: VContext, value: any): void {
+    ctx.assert(typeof value === "function", "is not a function");
+  }
+}
+
+/**
+ * Defines a function parameter.
+ */
+export function param(name: string, typeSpec: TypeSpec, isOpt?: boolean): TParam {
+  return new TParam(name, parseSpec(typeSpec), Boolean(isOpt));
+}
+export class TParam extends TNode {
+  constructor(public name: string, public ttype: TType, public isOpt: boolean) { super(); }
+}
+
+/**
+ * Defines a function parameter list.
+ */
+export class TParamList extends TType {
+  constructor(public params: TParam[]) { super(); }
+
+  // Similar to verifying a tuple, but handles optional parameters and reports parameter names.
+  public ctxCheck(ctx: VContext, value: any): void {
+    ctx.assert(Array.isArray(value), "is not an array");
+    if (ctx.strict) {
+      ctx.assert(value.length === this.params.length, "has incorrect length");
+    }
+    ctx.cyclePush(value);
+    ctx.propPush("");
+    for (let i = 0; i < this.params.length; i++) {
+      const param = this.params[i];
+      ctx.propSet(param.name);
+      if (value[i] === undefined) {
+        ctx.assert(param.isOpt, "is missing");
+      } else {
+        param.ttype.ctxCheck(ctx, value[i]);
+      }
+    }
+    ctx.propPop();
+    ctx.cyclePop(value);
+  }
+}
+
+class BasicType extends TType {
+  constructor(public validator: (value: any) => boolean, private message: string) { super(); }
+
+  public ctxCheck(ctx: VContext, value: any): void {
+    ctx.assert(this.validator(value), this.message);
+  }
+}
+
+/**
+ * Defines the suite of basic types.
+ */
+export const basicTypes: ITypeSuite = {
+  any:        new BasicType((v) => true, "is invalid"),
+  number:     new BasicType((v) => (typeof v === "number"), "is not a number"),
+  object:     new BasicType((v) => (typeof v === "object" && v), "is not an object"),
+  boolean:    new BasicType((v) => (typeof v === "boolean"), "is not a boolean"),
+  string:     new BasicType((v) => (typeof v === "string"), "is not a string"),
+  symbol:     new BasicType((v) => (typeof v === "symbol"), "is not a symbol"),
+  void:       new BasicType((v) => (v == null), "is not void"),
+  undefined:  new BasicType((v) => (v === undefined), "is not undefined"),
+  null:       new BasicType((v) => (v === null), "is not null"),
+  never:      new BasicType((v) => false, "is unexpected"),
+};
