@@ -4,6 +4,8 @@ import * as t from "../lib/types";
 import * as sample from "./fixtures/sample-ti";
 import * as shapes from "./fixtures/shapes-ti";
 
+function noop() { /* noop */ }
+
 describe("ts-interface-checker", () => {
   it("should validate data", () => {
     const {ICacheItem} = createCheckers({ICacheItem: sample.ICacheItem});
@@ -116,5 +118,91 @@ describe("ts-interface-checker", () => {
     // Missing or misspelled property.
     assert.throws(() => Shape.check({kind: "rectangle", height: 4}), /value.width is missing/);
     assert.throws(() => Shape.check({kind: "circle", Radius: 0.5}), /value.radius is missing/);
+  });
+
+  it("should support basic types", () => {
+    const {Type, Never, Invalid} = createCheckers({
+      Type: t.iface([], [
+        t.prop("any", "any"),
+        t.prop("number", "number"),
+        t.prop("object", "object"),
+        t.prop("boolean", "boolean"),
+        t.prop("string", "string"),
+        t.prop("symbol", "symbol"),
+        t.prop("void", "void"),
+        t.prop("undefined", "undefined", true),
+        t.prop("null", "null"),
+      ]),
+      Never: t.name("never"),
+      Invalid: t.name("InvalidName"),
+    });
+    Type.check({
+      any:        1,
+      number:     1,
+      object:     {},
+      boolean:    true,
+      string:     "x",
+      symbol:     Symbol("x"),
+      void:       null,
+      undefined:  void 0,
+      null:       null,
+    });
+    assert.throws(() => Type.getProp("number").check(null), "value is not a number");
+    assert.throws(() => Type.getProp("object").check(null), "value is not an object");
+    assert.throws(() => Type.getProp("boolean").check(1), "value is not a boolean");
+    assert.throws(() => Type.getProp("string").check(1), "value is not a string");
+    assert.throws(() => Type.getProp("symbol").check("x"), "value is not a symbol");
+    assert.throws(() => Type.getProp("void").check("x"), "value is not void");
+    assert.throws(() => Type.getProp("undefined").check(null), "value is not undefined");
+    assert.throws(() => Type.getProp("null").check(undefined), "value is not null");
+    assert.throws(() => Never.check(null), "value is unexpected");
+    assert.throws(() => Invalid.check(null), "Unknown type InvalidName");
+  });
+
+  it("should check function parameters and results", () => {
+    const {A, B} = createCheckers({
+      A: t.func("string", t.param("a", "number"), t.param("b", "string", true)),
+      B: t.iface([], [
+        t.prop("join", t.func("boolean", t.param("arr", t.array("string")))),
+        t.prop("foo", "string"),
+      ]),
+    });
+    A.getArgs().check([1.2]);
+    A.getArgs().check([1.2, "test"]);
+    A.getArgs().check([1.2, "test", false]);
+    A.getResult().check("test");
+    B.methodArgs("join").check([[]]);
+    B.methodArgs("join").check([["a", "b", "c"]]);
+    B.methodResult("join").check(true);
+
+    assert.throws(() => B.getArgs(), /non-function/);
+    assert.throws(() => B.getResult(), /non-function/);
+    assert.throws(() => B.methodArgs("blah"), /has no property blah/);
+    assert.throws(() => B.methodResult("foo"), /foo is not a method/);
+    assert.throws(() => B.getProp("blah"), /has no property blah/);
+
+    assert.throws(() => A.getArgs().check(["test"]), /a is not a number/);
+    assert.throws(() => A.getArgs().check([1.2, ["test"]]), /b is not a string/);
+    assert.throws(() => A.getArgs().strictCheck([1.2, "test", false]), "value[2] is extraneous");
+    assert.throws(() => A.getResult().check(null), /value is not a string/);
+    assert.throws(() => B.methodArgs("join").check([[1]]), "arr[0] is not a string");
+    assert.throws(() => B.methodResult("join").check(null), "value is not a boolean");
+
+    A.check(noop);
+    B.check({join: noop, foo: "foo"});
+    B.getProp("join").check(noop);
+    assert.throws(() => A.check([]), "value is not a function");
+    assert.throws(() => B.check({join: null, foo: "foo"}), "value.join is not a function");
+  });
+
+  it("should respect inherited interfaces", () => {
+    const {Type} = createCheckers({
+      Base: t.iface([], [t.prop("a", "string")]),
+      Type: t.iface(["Base"], [t.prop("b", "number")]),
+    });
+    Type.check({a: "foo", b: 17});
+    assert.throws(() => Type.check({b: 17}), /value.a is missing/);
+    assert.throws(() => Type.check({a: 17, b: 17}), /value.a is not a string/);
+    assert.throws(() => Type.check({a: "foo"}), /value.b is missing/);
   });
 });

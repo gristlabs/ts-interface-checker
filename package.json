@@ -7,7 +7,7 @@
   "scripts": {
     "build": "tsc",
     "watch": "tsc -w",
-    "test": "tsc && mocha -R list test/"
+    "test": "tsc && nyc mocha -R list test/"
   },
   "keywords": [
     "typescript",
@@ -18,15 +18,26 @@
     "validator",
     "check"
   ],
-  "author": "Dmitry S, Grist Labs",
+  "author": "Grist Labs",
   "license": "Apache-2.0",
+  "nyc": {
+    "extension": [
+      ".ts"
+    ],
+    "exclude": [
+      "**/*.d.ts"
+    ]
+  },
   "dependencies": {},
   "devDependencies": {
     "@types/chai": "^4.0.8",
     "@types/mocha": "^2.2.44",
     "@types/node": "^8.0.57",
     "chai": "^4.1.2",
+    "coveralls": "^3.0.0",
     "mocha": "^3.5.3",
+    "nyc": "^11.4.1",
+    "source-map-support": "^0.5.0",
     "ts-node": "^4.0.1",
     "typescript": "^2.6.2"
   }

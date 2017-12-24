@@ -89,6 +89,22 @@ export class Checker {
     return new Checker(this.suite, tfunc.result);
   }
 
+  /**
+   * If this checker is for a function, returns a Checker for its argument-list.
+   */
+  public getArgs(): Checker {
+    if (!(this.ttype instanceof TFunc)) { throw new Error("getArgs() applied to non-function"); }
+    return new Checker(this.suite, this.ttype.paramList);
+  }
+
+  /**
+   * If this checker is for a function, returns a Checker for its result.
+   */
+  public getResult(): Checker {
+    if (!(this.ttype instanceof TFunc)) { throw new Error("getResult() applied to non-function"); }
+    return new Checker(this.suite, this.ttype.result);
+  }
+
   private _getMethod(methodName: string): TFunc {
     const ttype = this.props.get(methodName);
     if (!ttype) { throw new Error(`Type has no property ${methodName}`); }

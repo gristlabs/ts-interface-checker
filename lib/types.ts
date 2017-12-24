@@ -3,15 +3,14 @@
  */
 // tslint:disable:no-shadowed-variable
 
-import {ICheckFailReporter, VContext} from "./util";
+import {VContext} from "./util";
 
 /** Base Node. */
 export class TNode {}
 
 /** Node that represents a type. */
-export abstract class TType extends TNode implements ICheckFailReporter {
+export abstract class TType extends TNode {
   public abstract ctxCheck(ctx: VContext, value: any): void;
-  public ctxFailMessage(): string|null { return null; }
 }
 
 /**
@@ -38,14 +37,12 @@ export interface ITypeSuite {
  */
 export function name(value: string): TName { return new TName(value); }
 export class TName extends TType {
-  constructor(public name: string) { super(); }
+  private _failMsg: string;
+  constructor(public name: string) { super(); this._failMsg = `is not a ${name}`; }
 
   public ctxCheck(ctx: VContext, value: any): void {
-    ctx.setMessage(this);
+    ctx.setMessage(this._failMsg);
     ctx.getNamedType(this.name).ctxCheck(ctx, value);
-  }
-  public ctxFailMessage() {
-    return `is not a ${this.name}`;
   }
 }
 
@@ -54,13 +51,11 @@ export class TName extends TType {
  */
 export function lit(value: any): TLiteral { return new TLiteral(value); }
 export class TLiteral extends TType {
-  constructor(public value: any) { super(); }
+  private _failMsg: string;
+  constructor(public value: any) { super(); this._failMsg = `is not ${JSON.stringify(value)}`; }
 
   public ctxCheck(ctx: VContext, value: any): void {
-    ctx.assert(value === this.value, this);
-  }
-  public ctxFailMessage() {
-    return `is not ${JSON.stringify(this.value)}`;
+    ctx.assert(value === this.value, this._failMsg);
   }
 }
 
@@ -151,10 +146,10 @@ export class TIface extends TType {
 
   public ctxCheck(ctx: VContext, value: any): void {
     ctx.assert(value !== null && typeof value === "object", "is not an object");
-    ctx.cyclePush(value);
     for (const base of this.bases) {
       ctx.getNamedType(base).ctxCheck(ctx, value);
     }
+    ctx.cyclePush(value);
     ctx.propPush("");
     for (const prop of this.props) {
       ctx.propSet(prop.name);
@@ -223,8 +218,9 @@ export class TParamList extends TType {
   // Similar to verifying a tuple, but handles optional parameters and reports parameter names.
   public ctxCheck(ctx: VContext, value: any): void {
     ctx.assert(Array.isArray(value), "is not an array");
-    if (ctx.strict) {
-      ctx.assert(value.length === this.params.length, "has incorrect length");
+    if (ctx.strict && value.length > this.params.length) {
+      ctx.propPush(this.params.length);
+      ctx.fail("is extraneous");
     }
     ctx.cyclePush(value);
     ctx.propPush("");
