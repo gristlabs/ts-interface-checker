@@ -95,8 +95,9 @@ export class TTuple extends TType {
 
   public ctxCheck(ctx: VContext, value: any): void {
     ctx.assert(Array.isArray(value), "is not an array");
-    if (ctx.strict) {
-      ctx.assert(value.length === this.ttypes.length, "has incorrect length");
+    if (ctx.strict && value.length > this.ttypes.length) {
+      ctx.propPush(this.ttypes.length);
+      ctx.fail("is extraneous");
     }
     ctx.cyclePush(value);
     ctx.propPush(0);
@@ -119,7 +120,8 @@ export class TUnion extends TType {
   constructor(public ttypes: TType[]) { super(); }
 
   public ctxCheck(ctx: VContext, value: any): void {
-    let message = "has no match";
+    const message = "has no match";
+    const details = [];
     for (const ttype of this.ttypes) {
       try {
         // We start a new context here for two reasons. One is to get a shorter message (relative
@@ -128,10 +130,10 @@ export class TUnion extends TType {
         // any VContext has to be discarded after an error.
         return ttype.ctxCheck(ctx.makeNew(), value);
       } catch (e) {
-        message += ", " + e.message;
+        details.push(e.message);
       }
     }
-    ctx.fail(message);
+    ctx.fail(`${message} (${details.join(", ")})`);
   }
 }
 
@@ -240,6 +242,9 @@ export class TParamList extends TType {
   }
 }
 
+/**
+ * Single TType implementation for all basic built-in types.
+ */
 class BasicType extends TType {
   constructor(public validator: (value: any) => boolean, private message: string) { super(); }
 

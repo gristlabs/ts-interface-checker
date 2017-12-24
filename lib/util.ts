@@ -86,19 +86,16 @@ export class VContext {
     }
   }
   public fail(message: string|ICheckFailReporter): never {
-    let path: string = "";
+    let path: string = "value";
     const msgParts: string[] = [];
     for (let i = 0; i < this._propNames.length; i++) {
       const p = this._propNames[i];
       path += (typeof p === "number") ? `[${p}]` : (p ? `.${p}` : "");
-      const m: string|null = getMessage(this._messages[i]);
+      const overrideMsg = (i === this._propNames.length - 1) ? getMessage(message) : null;
+      const m = overrideMsg || getMessage(this._messages[i]);
       if (m) {
-        msgParts.push(`${path || "value"} ${m}`);
+        msgParts.push(`${path} ${m}`);
       }
-    }
-    const msg: string|null = getMessage(message);
-    if (msg) {
-      msgParts.push(`${path || "value"} ${msg}`);
     }
     throw new VError(path, msgParts.join(", "));
   }
