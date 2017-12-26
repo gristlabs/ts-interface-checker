@@ -8,7 +8,6 @@ export type CheckerFunc = (value: any, ctx: Context) => boolean;
 // TODO: Rename to "Context". Have fast and complete impl.
 export class Context {
   public message: string = "hello";
-  constructor(public readonly strict: boolean) {}
   public fail(relPath: string|number|null, message: string|null): false {
     return false;
   }
@@ -25,7 +24,7 @@ export class TNode {}
 
 /** Node that represents a type. */
 export abstract class TType extends TNode {
-  public abstract getChecker(suite: ITypeSuite): CheckerFunc;
+  public abstract getChecker(suite: ITypeSuite, strict: boolean): CheckerFunc;
 }
 
 /**
@@ -61,10 +60,8 @@ export class TName extends TType {
   public _failMsg: string;
   constructor(public name: string) { super(); this._failMsg = `is not a ${name}`; }
 
-  public getChecker(suite: ITypeSuite): CheckerFunc {
-    const checker = getNamedType(suite, this.name).getChecker(suite);
-    return checker;
-    // return (value: any, ctx: Context) => checker(value, ctx) ? true : ctx.fail(null, this._failMsg);
+  public getChecker(suite: ITypeSuite, strict: boolean): CheckerFunc {
+    return getNamedType(suite, this.name).getChecker(suite, strict);
   }
 }
 
@@ -76,7 +73,7 @@ export class TLiteral extends TType {
   private _failMsg: string;
   constructor(public value: any) { super(); this._failMsg = `is not ${JSON.stringify(value)}`; }
 
-  public getChecker(suite: ITypeSuite): CheckerFunc {
+  public getChecker(suite: ITypeSuite, strict: boolean): CheckerFunc {
     return (value: any, ctx: Context) => (value === this.value) ? true : ctx.fail(null, this._failMsg);
   }
 }
@@ -88,8 +85,8 @@ export function array(typeSpec: TypeSpec): TArray { return new TArray(parseSpec(
 export class TArray extends TType {
   constructor(public ttype: TType) { super(); }
 
-  public getChecker(suite: ITypeSuite): CheckerFunc {
-    const itemChecker = this.ttype.getChecker(suite);
+  public getChecker(suite: ITypeSuite, strict: boolean): CheckerFunc {
+    const itemChecker = this.ttype.getChecker(suite, strict);
     return (value: any, ctx: Context) => {
       if (!Array.isArray(value)) { return ctx.fail(null, "is not an array"); }
       for (let i = 0; i < value.length; i++) {
@@ -110,19 +107,23 @@ export function tuple(...typeSpec: TypeSpec[]): TTuple {
 export class TTuple extends TType {
   constructor(public ttypes: TType[]) { super(); }
 
-  public getChecker(suite: ITypeSuite): CheckerFunc {
-    const itemCheckers = this.ttypes.map((t) => t.getChecker(suite));
-    return (value: any, ctx: Context) => {
+  public getChecker(suite: ITypeSuite, strict: boolean): CheckerFunc {
+    const itemCheckers = this.ttypes.map((t) => t.getChecker(suite, strict));
+    const checker = (value: any, ctx: Context) => {
       if (!Array.isArray(value)) { return ctx.fail(null, "is not an array"); }
       for (let i = 0; i < itemCheckers.length; i++) {
         const ok = itemCheckers[i](value[i], ctx);
         if (!ok) { return ctx.fail(i, null); }
       }
-      /* TODO
-      if (ctx.strict && value.length > itemCheckers.length) {
-        return ctx.fail(itemCheckers.length, "is extraneous");
-      }*/
       return true;
+    };
+
+    if (!strict) { return checker; }
+
+    return (value: any, ctx: Context) => {
+      if (!checker(value, ctx)) { return false; }
+      return value.length <= itemCheckers.length ? true :
+        ctx.fail(itemCheckers.length, "is extraneous");
     };
   }
 }
@@ -136,8 +137,8 @@ export function union(...typeSpec: TypeSpec[]): TUnion {
 export class TUnion extends TType {
   constructor(public ttypes: TType[]) { super(); }
 
-  public getChecker(suite: ITypeSuite): CheckerFunc {
-    const itemCheckers = this.ttypes.map((t) => t.getChecker(suite));
+  public getChecker(suite: ITypeSuite, strict: boolean): CheckerFunc {
+    const itemCheckers = this.ttypes.map((t) => t.getChecker(suite, strict));
     return (value: any, ctx: Context) => {
       for (let i = 0; i < itemCheckers.length; i++) {
         const uctx = ctx.clone();
@@ -156,16 +157,16 @@ export class TUnion extends TType {
  */
 export function iface(bases: string[], props: TProp[]): TIface { return new TIface(bases, props); }
 export class TIface extends TType {
-  public propSet: Set<string>;
+  private propSet: Set<string>;
   constructor(public bases: string[], public props: TProp[]) {
     super();
     this.propSet = new Set(props.map((p) => p.name));
   }
 
-  public getChecker(suite: ITypeSuite): CheckerFunc {
-    const baseCheckers = this.bases.map((b) => getNamedType(suite, b).getChecker(suite));
-    const propCheckers = this.props.map((prop) => prop.ttype.getChecker(suite));
-    return (value: any, ctx: Context) => {
+  public getChecker(suite: ITypeSuite, strict: boolean): CheckerFunc {
+    const baseCheckers = this.bases.map((b) => getNamedType(suite, b).getChecker(suite, strict));
+    const propCheckers = this.props.map((prop) => prop.ttype.getChecker(suite, strict));
+    const checker = (value: any, ctx: Context) => {
       if (typeof value !== "object" || value === null) { return ctx.fail(null, "is not an object"); }
       for (let i = 0; i < baseCheckers.length; i++) {
         if (!baseCheckers[i](value, ctx)) { return false; }
@@ -178,16 +179,19 @@ export class TIface extends TType {
           if (!ok) { return ctx.fail(p.name, v === undefined ? "is missing" : null); }
         }
       }
-      /*
-      if (ctx.strict) {
-        // In strict mode, check also for unknown enumerable properties.
-        for (const prop in value) {
-          if (!this.propSet.has(prop)) {
-            return ctx.fail(prop, "is extraneous");
-          }
+      return true;
+    };
+
+    if (!strict) { return checker; }
+
+    // In strict mode, check also for unknown enumerable properties.
+    return (value: any, ctx: Context) => {
+      if (!checker(value, ctx)) { return false; }
+      for (const prop in value) {
+        if (!this.propSet.has(prop)) {
+          return ctx.fail(prop, "is extraneous");
         }
       }
-      */
       return true;
     };
   }
@@ -213,7 +217,7 @@ export function func(resultSpec: TypeSpec, ...params: TParam[]): TFunc {
 export class TFunc extends TType {
   constructor(public paramList: TParamList, public result: TType) { super(); }
 
-  public getChecker(suite: ITypeSuite): CheckerFunc {
+  public getChecker(suite: ITypeSuite, strict: boolean): CheckerFunc {
     return (value: any, ctx: Context) => {
       return typeof value === "function" ? true : ctx.fail(null, "is not a function");
     };
@@ -236,20 +240,23 @@ export class TParam extends TNode {
 export class TParamList extends TType {
   constructor(public params: TParam[]) { super(); }
 
-  public getChecker(suite: ITypeSuite): CheckerFunc {
-    const itemCheckers = this.params.map((t) => t.ttype.getChecker(suite));
-    return (value: any, ctx: Context) => {
+  public getChecker(suite: ITypeSuite, strict: boolean): CheckerFunc {
+    const itemCheckers = this.params.map((t) => t.ttype.getChecker(suite, strict));
+    const checker = (value: any, ctx: Context) => {
       if (!Array.isArray(value)) { return ctx.fail(null, "is not an array"); }
       for (let i = 0; i < itemCheckers.length; i++) {
         const ok = itemCheckers[i](value[i], ctx);
         if (!ok) { return ctx.fail(this.params[i].name, null); }
       }
-      /*
-      if (ctx.strict && value.length > itemCheckers.length) {
-        return ctx.fail(itemCheckers.length, "is extraneous");
-      }
-      */
       return true;
+    };
+
+    if (!strict) { return checker; }
+
+    return (value: any, ctx: Context) => {
+      if (!checker(value, ctx)) { return false; }
+      return value.length <= itemCheckers.length ? true :
+        ctx.fail(itemCheckers.length, "is extraneous");
     };
   }
 }
@@ -260,7 +267,7 @@ export class TParamList extends TType {
 class BasicType extends TType {
   constructor(public validator: (value: any) => boolean, private message: string) { super(); }
 
-  public getChecker(suite: ITypeSuite): CheckerFunc {
+  public getChecker(suite: ITypeSuite, strict: boolean): CheckerFunc {
     return (value: any, ctx: Context) => this.validator(value) ? true : ctx.fail(null, this.message);
   }
 }

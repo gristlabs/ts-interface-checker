@@ -30,6 +30,7 @@ export function createCheckers(...typeSuite: ITypeSuite[]): ICheckerSuite {
 export class Checker {
   private props: Map<string, TType> = new Map();
   private checkerFunc: CheckerFunc;
+  private strictCheckerFunc: CheckerFunc;
   private ctx: Context;
 
   // Create checkers by using `createCheckers()` function.
@@ -39,12 +40,9 @@ export class Checker {
         this.props.set(p.name, p.ttype);
       }
     }
-    this.checkerFunc = this.ttype.getChecker(suite);
-    this.ctx = new Context(false);
-  }
-
-  public prepare(): void {
-    this.checkerFunc = this.ttype.getChecker(this.suite);
+    this.checkerFunc = this.ttype.getChecker(suite, false);
+    this.strictCheckerFunc = this.ttype.getChecker(suite, true);
+    this.ctx = new Context();
   }
 
   /**
@@ -61,7 +59,7 @@ export class Checker {
    * a plain check() is more appropriate.
    */
   public strictCheck(value: any): void {
-    const m = this.checkerFunc(value, new Context(true));
+    const m = this.strictCheckerFunc(value, this.ctx);
     if (m) { throw new Error(`Failed with: ${m}`); }
   }
 
