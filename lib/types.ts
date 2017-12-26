@@ -1,16 +1,31 @@
 /**
  * This module defines nodes used to define types and validations for objects and interfaces.
  */
-// tslint:disable:no-shadowed-variable
+// tslint:disable:no-shadowed-variable prefer-for-of
 
-import {VContext} from "./util";
+export type CheckerFunc = (value: any, ctx: Context) => boolean;
+
+// TODO: Rename to "Context". Have fast and complete impl.
+export class Context {
+  public message: string = "hello";
+  constructor(public readonly strict: boolean) {}
+  public fail(relPath: string|number|null, message: string|null): false {
+    return false;
+  }
+  public clone() {
+    return this;
+  }
+  public addUnion(ctx: Context) {
+    // do nothing
+  }
+}
 
 /** Base Node. */
 export class TNode {}
 
 /** Node that represents a type. */
 export abstract class TType extends TNode {
-  public abstract ctxCheck(ctx: VContext, value: any): void;
+  public abstract getChecker(suite: ITypeSuite): CheckerFunc;
 }
 
 /**
@@ -31,18 +46,25 @@ export interface ITypeSuite {
   [name: string]: TType;
 }
 
+function getNamedType(suite: ITypeSuite, name: string): TType {
+  const ttype = suite[name];
+  if (!ttype) { throw new Error(`Unknown type ${name}`); }
+  return ttype;
+}
+
 /**
  * Defines a type name, either built-in, or defined in this suite. It can typically be included in
  * the specs as just a plain string.
  */
 export function name(value: string): TName { return new TName(value); }
 export class TName extends TType {
-  private _failMsg: string;
+  public _failMsg: string;
   constructor(public name: string) { super(); this._failMsg = `is not a ${name}`; }
 
-  public ctxCheck(ctx: VContext, value: any): void {
-    ctx.setMessage(this._failMsg);
-    ctx.getNamedType(this.name).ctxCheck(ctx, value);
+  public getChecker(suite: ITypeSuite): CheckerFunc {
+    const checker = getNamedType(suite, this.name).getChecker(suite);
+    return checker;
+    // return (value: any, ctx: Context) => checker(value, ctx) ? true : ctx.fail(null, this._failMsg);
   }
 }
 
@@ -54,8 +76,8 @@ export class TLiteral extends TType {
   private _failMsg: string;
   constructor(public value: any) { super(); this._failMsg = `is not ${JSON.stringify(value)}`; }
 
-  public ctxCheck(ctx: VContext, value: any): void {
-    ctx.assert(value === this.value, this._failMsg);
+  public getChecker(suite: ITypeSuite): CheckerFunc {
+    return (value: any, ctx: Context) => (value === this.value) ? true : ctx.fail(null, this._failMsg);
   }
 }
 
@@ -66,16 +88,16 @@ export function array(typeSpec: TypeSpec): TArray { return new TArray(parseSpec(
 export class TArray extends TType {
   constructor(public ttype: TType) { super(); }
 
-  public ctxCheck(ctx: VContext, value: any): void {
-    ctx.assert(Array.isArray(value), "is not an array");
-    ctx.cyclePush(value);
-    ctx.propPush(0);
-    for (let i = 0; i < value.length; i++) {
-      ctx.propSet(i);
-      this.ttype.ctxCheck(ctx, value[i]);
-    }
-    ctx.propPop();
-    ctx.cyclePop(value);
+  public getChecker(suite: ITypeSuite): CheckerFunc {
+    const itemChecker = this.ttype.getChecker(suite);
+    return (value: any, ctx: Context) => {
+      if (!Array.isArray(value)) { return ctx.fail(null, "is not an array"); }
+      for (let i = 0; i < value.length; i++) {
+        const ok = itemChecker(value[i], ctx);
+        if (!ok) { return ctx.fail(i, null); }
+      }
+      return true;
+    };
   }
 }
 
@@ -88,20 +110,20 @@ export function tuple(...typeSpec: TypeSpec[]): TTuple {
 export class TTuple extends TType {
   constructor(public ttypes: TType[]) { super(); }
 
-  public ctxCheck(ctx: VContext, value: any): void {
-    ctx.assert(Array.isArray(value), "is not an array");
-    if (ctx.strict && value.length > this.ttypes.length) {
-      ctx.propPush(this.ttypes.length);
-      ctx.fail("is extraneous");
-    }
-    ctx.cyclePush(value);
-    ctx.propPush(0);
-    for (let i = 0; i < this.ttypes.length; i++) {
-      ctx.propSet(i);
-      this.ttypes[i].ctxCheck(ctx, value[i]);
-    }
-    ctx.propPop();
-    ctx.cyclePop(value);
+  public getChecker(suite: ITypeSuite): CheckerFunc {
+    const itemCheckers = this.ttypes.map((t) => t.getChecker(suite));
+    return (value: any, ctx: Context) => {
+      if (!Array.isArray(value)) { return ctx.fail(null, "is not an array"); }
+      for (let i = 0; i < itemCheckers.length; i++) {
+        const ok = itemCheckers[i](value[i], ctx);
+        if (!ok) { return ctx.fail(i, null); }
+      }
+      /* TODO
+      if (ctx.strict && value.length > itemCheckers.length) {
+        return ctx.fail(itemCheckers.length, "is extraneous");
+      }*/
+      return true;
+    };
   }
 }
 
@@ -114,21 +136,17 @@ export function union(...typeSpec: TypeSpec[]): TUnion {
 export class TUnion extends TType {
   constructor(public ttypes: TType[]) { super(); }
 
-  public ctxCheck(ctx: VContext, value: any): void {
-    const message = "has no match";
-    const details = [];
-    for (const ttype of this.ttypes) {
-      try {
-        // We start a new context here for two reasons. One is to get a shorter message (relative
-        // to union's path), which we'll include. More importantly, any error may leave VContext
-        // in an inconsistent state (since we avoid `finally` clauses and only pop on success); so
-        // any VContext has to be discarded after an error.
-        return ttype.ctxCheck(ctx.makeNew(), value);
-      } catch (e) {
-        details.push(e.message);
+  public getChecker(suite: ITypeSuite): CheckerFunc {
+    const itemCheckers = this.ttypes.map((t) => t.getChecker(suite));
+    return (value: any, ctx: Context) => {
+      for (let i = 0; i < itemCheckers.length; i++) {
+        const uctx = ctx.clone();
+        const ok = itemCheckers[i](value, ctx);
+        if (ok) { return true; }
+        ctx.addUnion(uctx);
       }
-    }
-    ctx.fail(`${message} (${details.join(", ")})`);
+      return ctx.fail(null, "has no match");
+    };
   }
 }
 
@@ -138,39 +156,40 @@ export class TUnion extends TType {
  */
 export function iface(bases: string[], props: TProp[]): TIface { return new TIface(bases, props); }
 export class TIface extends TType {
-  private propSet: Set<string>;
+  public propSet: Set<string>;
   constructor(public bases: string[], public props: TProp[]) {
     super();
     this.propSet = new Set(props.map((p) => p.name));
   }
 
-  public ctxCheck(ctx: VContext, value: any): void {
-    ctx.assert(value !== null && typeof value === "object", "is not an object");
-    for (const base of this.bases) {
-      ctx.getNamedType(base).ctxCheck(ctx, value);
-    }
-    ctx.cyclePush(value);
-    ctx.propPush("");
-    for (const prop of this.props) {
-      ctx.propSet(prop.name);
-      if (value[prop.name] === undefined) {
-        ctx.assert(prop.isOpt, "is missing");
-      } else {
-        prop.ttype.ctxCheck(ctx, value[prop.name]);
+  public getChecker(suite: ITypeSuite): CheckerFunc {
+    const baseCheckers = this.bases.map((b) => getNamedType(suite, b).getChecker(suite));
+    const propCheckers = this.props.map((prop) => prop.ttype.getChecker(suite));
+    return (value: any, ctx: Context) => {
+      if (typeof value !== "object" || value === null) { return ctx.fail(null, "is not an object"); }
+      for (let i = 0; i < baseCheckers.length; i++) {
+        if (!baseCheckers[i](value, ctx)) { return false; }
       }
-    }
-    ctx.propPop();
-
-    if (ctx.strict) {
-      // In strict mode, check also for unknown enumerable properties.
-      for (const prop in value) {
-        if (!this.propSet.has(prop)) {
-          ctx.propPush(prop);
-          ctx.fail("is extraneous");
+      for (let i = 0; i < propCheckers.length; i++) {
+        const p = this.props[i];
+        const v = value[p.name];
+        if (!p.isOpt || v !== undefined) {
+          const ok = propCheckers[i](v, ctx);
+          if (!ok) { return ctx.fail(p.name, v === undefined ? "is missing" : null); }
         }
       }
-    }
-    ctx.cyclePop(value);
+      /*
+      if (ctx.strict) {
+        // In strict mode, check also for unknown enumerable properties.
+        for (const prop in value) {
+          if (!this.propSet.has(prop)) {
+            return ctx.fail(prop, "is extraneous");
+          }
+        }
+      }
+      */
+      return true;
+    };
   }
 }
 
@@ -194,8 +213,10 @@ export function func(resultSpec: TypeSpec, ...params: TParam[]): TFunc {
 export class TFunc extends TType {
   constructor(public paramList: TParamList, public result: TType) { super(); }
 
-  public ctxCheck(ctx: VContext, value: any): void {
-    ctx.assert(typeof value === "function", "is not a function");
+  public getChecker(suite: ITypeSuite): CheckerFunc {
+    return (value: any, ctx: Context) => {
+      return typeof value === "function" ? true : ctx.fail(null, "is not a function");
+    };
   }
 }
 
@@ -215,26 +236,21 @@ export class TParam extends TNode {
 export class TParamList extends TType {
   constructor(public params: TParam[]) { super(); }
 
-  // Similar to verifying a tuple, but handles optional parameters and reports parameter names.
-  public ctxCheck(ctx: VContext, value: any): void {
-    ctx.assert(Array.isArray(value), "is not an array");
-    if (ctx.strict && value.length > this.params.length) {
-      ctx.propPush(this.params.length);
-      ctx.fail("is extraneous");
-    }
-    ctx.cyclePush(value);
-    ctx.propPush("");
-    for (let i = 0; i < this.params.length; i++) {
-      const param = this.params[i];
-      ctx.propSet(param.name);
-      if (value[i] === undefined) {
-        ctx.assert(param.isOpt, "is missing");
-      } else {
-        param.ttype.ctxCheck(ctx, value[i]);
+  public getChecker(suite: ITypeSuite): CheckerFunc {
+    const itemCheckers = this.params.map((t) => t.ttype.getChecker(suite));
+    return (value: any, ctx: Context) => {
+      if (!Array.isArray(value)) { return ctx.fail(null, "is not an array"); }
+      for (let i = 0; i < itemCheckers.length; i++) {
+        const ok = itemCheckers[i](value[i], ctx);
+        if (!ok) { return ctx.fail(this.params[i].name, null); }
       }
-    }
-    ctx.propPop();
-    ctx.cyclePop(value);
+      /*
+      if (ctx.strict && value.length > itemCheckers.length) {
+        return ctx.fail(itemCheckers.length, "is extraneous");
+      }
+      */
+      return true;
+    };
   }
 }
 
@@ -244,8 +260,8 @@ export class TParamList extends TType {
 class BasicType extends TType {
   constructor(public validator: (value: any) => boolean, private message: string) { super(); }
 
-  public ctxCheck(ctx: VContext, value: any): void {
-    ctx.assert(this.validator(value), this.message);
+  public getChecker(suite: ITypeSuite): CheckerFunc {
+    return (value: any, ctx: Context) => this.validator(value) ? true : ctx.fail(null, this.message);
   }
 }
 

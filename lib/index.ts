@@ -1,5 +1,4 @@
-import {basicTypes, ITypeSuite, TFunc, TIface, TType} from "./types";
-import {VContext} from "./util";
+import {basicTypes, CheckerFunc, Context, ITypeSuite, TFunc, TIface, TType} from "./types";
 
 export interface ICheckerSuite {
   [name: string]: Checker;
@@ -13,12 +12,11 @@ export interface ICheckerSuite {
  * The returned object maps type names to Checker objects.
  */
 export function createCheckers(...typeSuite: ITypeSuite[]): ICheckerSuite {
+  const fullSuite: ITypeSuite = Object.assign({}, basicTypes, ...typeSuite);
   const checkers: ICheckerSuite = {};
-  const fullSuite: ITypeSuite = Object.assign({}, basicTypes);
   for (const suite of typeSuite) {
     for (const name of Object.keys(suite)) {
       const ttype = suite[name];
-      fullSuite[name] = ttype;
       checkers[name] = new Checker(fullSuite, ttype);
     }
   }
@@ -31,6 +29,8 @@ export function createCheckers(...typeSuite: ITypeSuite[]): ICheckerSuite {
  */
 export class Checker {
   private props: Map<string, TType> = new Map();
+  private checkerFunc: CheckerFunc;
+  private ctx: Context;
 
   // Create checkers by using `createCheckers()` function.
   constructor(private suite: ITypeSuite, private ttype: TType) {
@@ -39,13 +39,20 @@ export class Checker {
         this.props.set(p.name, p.ttype);
       }
     }
+    this.checkerFunc = this.ttype.getChecker(suite);
+    this.ctx = new Context(false);
+  }
+
+  public prepare(): void {
+    this.checkerFunc = this.ttype.getChecker(this.suite);
   }
 
   /**
    * Check that the given value satisfies this checker's type, or throw VError.
    */
   public check(value: any): void {
-    this.ttype.ctxCheck(new VContext(this.suite, false), value);
+    const m = this.checkerFunc(value, this.ctx);
+    if (!m) { throw new Error(`Failed with: ${this.ctx.message}`); }
   }
 
   /**
@@ -54,7 +61,8 @@ export class Checker {
    * a plain check() is more appropriate.
    */
   public strictCheck(value: any): void {
-    this.ttype.ctxCheck(new VContext(this.suite, true), value);
+    const m = this.checkerFunc(value, new Context(true));
+    if (m) { throw new Error(`Failed with: ${m}`); }
   }
 
   /**
