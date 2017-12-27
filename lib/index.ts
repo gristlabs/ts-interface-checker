@@ -1,4 +1,5 @@
-import {basicTypes, CheckerFunc, Context, ITypeSuite, TFunc, TIface, TType} from "./types";
+import {basicTypes, CheckerFunc, ITypeSuite, TFunc, TIface, TType} from "./types";
+import {ErrorContext, NoopContext} from "./util";
 
 export interface ICheckerSuite {
   [name: string]: Checker;
@@ -31,7 +32,6 @@ export class Checker {
   private props: Map<string, TType> = new Map();
   private checkerFunc: CheckerFunc;
   private strictCheckerFunc: CheckerFunc;
-  private ctx: Context;
 
   // Create checkers by using `createCheckers()` function.
   constructor(private suite: ITypeSuite, private ttype: TType) {
@@ -42,26 +42,19 @@ export class Checker {
     }
     this.checkerFunc = this.ttype.getChecker(suite, false);
     this.strictCheckerFunc = this.ttype.getChecker(suite, true);
-    this.ctx = new Context();
   }
 
   /**
    * Check that the given value satisfies this checker's type, or throw VError.
    */
-  public check(value: any): void {
-    const m = this.checkerFunc(value, this.ctx);
-    if (!m) { throw new Error(`Failed with: ${this.ctx.message}`); }
-  }
+  public check(value: any): void { return this._doCheck(this.checkerFunc, value); }
 
   /**
    * Check that the given value satisfies this checker's type strictly. This checks that objects
    * and tuples have no extra members. Note that this prevents backward compatibility, so usually
    * a plain check() is more appropriate.
    */
-  public strictCheck(value: any): void {
-    const m = this.strictCheckerFunc(value, this.ctx);
-    if (m) { throw new Error(`Failed with: ${m}`); }
-  }
+  public strictCheck(value: any): void { return this._doCheck(this.strictCheckerFunc, value); }
 
   /**
    * If this checker is for an interface, returns a Checker for the type required for the given
@@ -109,6 +102,18 @@ export class Checker {
   public getResult(): Checker {
     if (!(this.ttype instanceof TFunc)) { throw new Error("getResult() applied to non-function"); }
     return new Checker(this.suite, this.ttype.result);
+  }
+
+  /**
+   * Actual implementation of check() and strictCheck().
+   */
+  private _doCheck(checkerFunc: CheckerFunc, value: any): void {
+    const noopCtx = new NoopContext();
+    if (!checkerFunc(value, noopCtx)) {
+      const errorCtx = new ErrorContext();
+      checkerFunc(value, errorCtx);
+      throw new Error(errorCtx.getErrorMessage());
+    }
   }
 
   private _getMethod(methodName: string): TFunc {

@@ -3,21 +3,9 @@
  */
 // tslint:disable:no-shadowed-variable prefer-for-of
 
-export type CheckerFunc = (value: any, ctx: Context) => boolean;
+import {Context} from "./util";
 
-// TODO: Rename to "Context". Have fast and complete impl.
-export class Context {
-  public message: string = "hello";
-  public fail(relPath: string|number|null, message: string|null): false {
-    return false;
-  }
-  public clone() {
-    return this;
-  }
-  public addUnion(ctx: Context) {
-    // do nothing
-  }
-}
+export type CheckerFunc = (value: any, ctx: Context) => boolean;
 
 /** Base Node. */
 export class TNode {}
@@ -57,11 +45,15 @@ function getNamedType(suite: ITypeSuite, name: string): TType {
  */
 export function name(value: string): TName { return new TName(value); }
 export class TName extends TType {
-  public _failMsg: string;
+  private _failMsg: string;
   constructor(public name: string) { super(); this._failMsg = `is not a ${name}`; }
 
   public getChecker(suite: ITypeSuite, strict: boolean): CheckerFunc {
-    return getNamedType(suite, this.name).getChecker(suite, strict);
+    const ttype = getNamedType(suite, this.name);
+    const checker = ttype.getChecker(suite, strict);
+    if (ttype instanceof BasicType || ttype instanceof TName) { return checker; }
+    // For complex types, add an additional "is not a <Type>" message on failure.
+    return (value: any, ctx: Context) => checker(value, ctx) ? true : ctx.fail(null, this._failMsg);
   }
 }
 
@@ -74,7 +66,7 @@ export class TLiteral extends TType {
   constructor(public value: any) { super(); this._failMsg = `is not ${JSON.stringify(value)}`; }
 
   public getChecker(suite: ITypeSuite, strict: boolean): CheckerFunc {
-    return (value: any, ctx: Context) => (value === this.value) ? true : ctx.fail(null, this._failMsg);
+    return (value: any, ctx: Context) => (value === this.value) ? true : ctx.fail(null, this._failMsg, 5);
   }
 }
 
@@ -135,18 +127,33 @@ export function union(...typeSpec: TypeSpec[]): TUnion {
   return new TUnion(typeSpec.map((t) => parseSpec(t)));
 }
 export class TUnion extends TType {
-  constructor(public ttypes: TType[]) { super(); }
+  private _failMsg: string;
+  constructor(public ttypes: TType[]) {
+    super();
+    const names = ttypes.map((t) => t instanceof TName ? t.name : null).filter((n) => n);
+    const otherTypes: number = ttypes.length - names.length;
+    if (names.length) {
+      if (otherTypes > 0) {
+        names.push(`${otherTypes} more`);
+      }
+      this._failMsg = `is none of ${names.join(", ")}`;
+    } else {
+      this._failMsg = `is none of ${otherTypes} types`;
+    }
+  }
 
   public getChecker(suite: ITypeSuite, strict: boolean): CheckerFunc {
     const itemCheckers = this.ttypes.map((t) => t.getChecker(suite, strict));
     return (value: any, ctx: Context) => {
+      const ur = ctx.unionResolver();
       for (let i = 0; i < itemCheckers.length; i++) {
         const uctx = ctx.clone();
-        const ok = itemCheckers[i](value, ctx);
+        const ok = itemCheckers[i](value, uctx);
         if (ok) { return true; }
-        ctx.addUnion(uctx);
+        ur.addMember(uctx);
       }
-      return ctx.fail(null, "has no match");
+      ctx.resolveUnion(ur);
+      return ctx.fail(null, this._failMsg);
     };
   }
 }
@@ -245,8 +252,11 @@ export class TParamList extends TType {
     const checker = (value: any, ctx: Context) => {
       if (!Array.isArray(value)) { return ctx.fail(null, "is not an array"); }
       for (let i = 0; i < itemCheckers.length; i++) {
-        const ok = itemCheckers[i](value[i], ctx);
-        if (!ok) { return ctx.fail(this.params[i].name, null); }
+        const p = this.params[i];
+        if (!p.isOpt || value[i] !== undefined) {
+          const ok = itemCheckers[i](value[i], ctx);
+          if (!ok) { return ctx.fail(p.name, null); }
+        }
       }
       return true;
     };
