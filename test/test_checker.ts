@@ -30,6 +30,15 @@ describe("ts-interface-checker", () => {
       "value.extra is extraneous");
   });
 
+  it("should support quick tests", () => {
+    const {ICacheItem} = createCheckers({ICacheItem: sample.ICacheItem});
+    assert.isTrue(ICacheItem.test({key: "foo", value: {}, size: 17, tag: "baz"}));
+    assert.isFalse(ICacheItem.test({key: "foo", value: {}, size: "text", tag: "baz"})),
+    assert.isTrue(ICacheItem.strictTest({key: "foo", value: {}, size: 17, tag: "baz"}));
+    assert.isFalse(ICacheItem.strictTest({key: "foo", value: {}, size: "text", tag: "baz"})),
+    assert.isFalse(ICacheItem.strictTest({key: "foo", value: {}, size: 17, tag: "baz", extra: "baz"}));
+  });
+
   it("should produce helpful errors", () => {
     const {ICacheItem} = createCheckers(sample);
     assert.throws(() => ICacheItem.check({key: "foo", value: {}, size: null, tag: "baz"}),
@@ -42,7 +51,7 @@ describe("ts-interface-checker", () => {
 
   it("should support unions", () => {
     const {Type} = createCheckers({
-      Type: t.union("string", "number", "null", t.iface([], [t.prop("foo", "string")])),
+      Type: t.union("string", "number", "null", t.iface([], {foo: "string"})),
     });
     Type.check("hello");
     Type.check(-17.5);
@@ -50,29 +59,29 @@ describe("ts-interface-checker", () => {
     Type.check({foo: "bar"});
     assert.throws(() => Type.check(undefined), "value is none of string, number, null, 1 more");
     assert.throws(() => Type.check([]),
-      "value is none of string, number, null, 1 more, value.foo is missing");
+      "value is none of string, number, null, 1 more; value.foo is missing");
     assert.throws(() => Type.check({foo: 17}),
-      "value is none of string, number, null, 1 more, value.foo is not a string");
+      "value is none of string, number, null, 1 more; value.foo is not a string");
     assert.throws(() => Type.check({}),
-      "value is none of string, number, null, 1 more, value.foo is missing");
+      "value is none of string, number, null, 1 more; value.foo is missing");
   });
 
   it("should generate good messages for complex unions", () => {
     const {Type} = createCheckers({
-      Foo: t.iface([], [t.prop("foo", "number")]),
-      Type: t.union(t.iface([], [t.prop("a", "Foo")]),
-                    t.iface([], [t.prop("a", "number")])),
+      Foo: t.iface([], {foo: "number"}),
+      Type: t.union(t.iface([], {a: "Foo"}),
+                    t.iface([], {a: "number"})),
     });
     Type.check({a: 12});
     Type.check({a: {foo: 12}});
-    assert.throws(() => Type.check({a: "x"}), /^value is none of 2 types, value.a is not a number$/);
+    assert.throws(() => Type.check({a: "x"}), /^value is none of 2 types; value.a is not a number$/);
     assert.throws(() => Type.check({a: {foo: "x"}}),
-      /^value is none of 2 types, value.a is not a Foo, value.a.foo is not a number$/);
+      /^value is none of 2 types; value.a is not a Foo; value.a.foo is not a number$/);
   });
 
   it("should support tuples", () => {
     const {Type} = createCheckers({
-      Type: t.tuple("string", "number", t.iface([], [t.prop("foo", "string")])),
+      Type: t.tuple("string", "number", t.iface([], {foo: "string"})),
     });
     Type.check(["hello", 4.5, {foo: "bar"}]);
     Type.check(["hello", 4.5, {foo: "bar"}, "baz"]);
@@ -80,11 +89,12 @@ describe("ts-interface-checker", () => {
     assert.throws(() => Type.check([]), "value[0] is not a string");
     assert.throws(() => Type.check([4.5, "hello", {foo: "bar"}]), "value[0] is not a string");
     assert.throws(() => Type.check(["hello", 4.5]), "value[2] is not an object");
+    Type.strictCheck(["x", 4, {foo: "bar"}]);
     assert.throws(() => Type.strictCheck(["x", 4, {foo: "bar"}, "baz"]), "value[3] is extraneous");
   });
 
   it("should support arrays", () => {
-    const {Type} = createCheckers({Type: t.array(t.iface([], [t.prop("foo", "string")]))});
+    const {Type} = createCheckers({Type: t.array(t.iface([], {foo: "string"}))});
     Type.check([]);
     Type.check([{foo: "bar"}, {foo: ""}]);
     assert.throws(() => Type.check(undefined), "value is not an array");
@@ -110,8 +120,8 @@ describe("ts-interface-checker", () => {
     assert.throws(() => tt.foo.check(17), "value is not \"foo\"");
     assert.throws(() => tt.num.check("foo"), "value is not 17");
     assert.throws(() => tt.flag.check(false), "value is not true");
-    assert.throws(() => tt.union.check("FOO"), /^value is none of 3 types, value is not "baz"$/);
-    assert.throws(() => tt.union.check(undefined), /^value is none of 3 types, value is not "baz"$/);
+    assert.throws(() => tt.union.check("FOO"), /^value is none of "foo", "bar", "baz"$/);
+    assert.throws(() => tt.union.check(undefined), /^value is none of "foo", "bar", "baz"$/);
   });
 
   it("should handle discriminated unions", () => {
@@ -123,13 +133,13 @@ describe("ts-interface-checker", () => {
     // Extraneous property.
     Shape.check({kind: "square", size: 17, depth: 5});
     assert.throws(() => Shape.strictCheck({kind: "square", size: 17, depth: 5}),
-      /^value is none of Square, Rectangle, Circle, value is not a Square, value.depth is extraneous$/);
+      /^value is none of Square, Rectangle, Circle; value is not a Square; value.depth is extraneous$/);
 
     // Mismatching or missing kind.
     assert.throws(() => Shape.check({kind: "square", width: 17, height: 4}),
       /value.size is missing/);
     assert.throws(() => Shape.check({kind: "rectangle", radius: 0.5}),
-      /^value is none of Square, Rectangle, Circle, value is not a Rectangle, value.width is missing$/);
+      /^value is none of Square, Rectangle, Circle; value is not a Rectangle; value.width is missing$/);
     assert.throws(() => Shape.check({width: 17, height: 4}), /value.kind is missing/);
 
     // Missing or misspelled property.
@@ -140,23 +150,23 @@ describe("ts-interface-checker", () => {
   it("should fail early when suite is missing types", () => {
     assert.throws(() => createCheckers({Invalid: t.name("InvalidName")}),
       "Unknown type InvalidName");
-    assert.throws(() => createCheckers({Invalid: t.iface(["InvalidName"], [])}),
+    assert.throws(() => createCheckers({Invalid: t.iface(["InvalidName"], {})}),
       "Unknown type InvalidName");
   });
 
   it("should support basic types", () => {
     const {Type, Never} = createCheckers({
-      Type: t.iface([], [
-        t.prop("any", "any"),
-        t.prop("number", "number"),
-        t.prop("object", "object"),
-        t.prop("boolean", "boolean"),
-        t.prop("string", "string"),
-        t.prop("symbol", "symbol"),
-        t.prop("void", "void"),
-        t.prop("undefined", "undefined", true),
-        t.prop("null", "null"),
-      ]),
+      Type: t.iface([], {
+        any: "any",
+        number: "number",
+        object: "object",
+        boolean: "boolean",
+        string: "string",
+        symbol: "symbol",
+        void: "void",
+        undefined: "undefined",
+        null: "null",
+      }),
       Never: t.name("never"),
     });
     Type.check({
@@ -184,14 +194,15 @@ describe("ts-interface-checker", () => {
   it("should check function parameters and results", () => {
     const {A, B} = createCheckers({
       A: t.func("string", t.param("a", "number"), t.param("b", "string", true)),
-      B: t.iface([], [
-        t.prop("join", t.func("boolean", t.param("arr", t.array("string")))),
-        t.prop("foo", "string"),
-      ]),
+      B: t.iface([], {
+        join: t.func("boolean", t.param("arr", t.array("string"))),
+        foo: "string",
+      }),
     });
     A.getArgs().check([1.2]);
     A.getArgs().check([1.2, "test"]);
     A.getArgs().check([1.2, "test", false]);
+    A.getArgs().strictCheck([1.2, "test"]);
     A.getResult().check("test");
     B.methodArgs("join").check([[]]);
     B.methodArgs("join").check([["a", "b", "c"]]);
@@ -203,8 +214,10 @@ describe("ts-interface-checker", () => {
     assert.throws(() => B.methodResult("foo"), /foo is not a method/);
     assert.throws(() => B.getProp("blah"), /has no property blah/);
 
+    assert.throws(() => A.getArgs().check("test"), /is not an array/);
     assert.throws(() => A.getArgs().check(["test"]), /a is not a number/);
     assert.throws(() => A.getArgs().check([1.2, ["test"]]), /b is not a string/);
+    assert.throws(() => A.getArgs().strictCheck([1.2, ["test"]]), /b is not a string/);
     assert.throws(() => A.getArgs().strictCheck([1.2, "test", false]), "value[2] is extraneous");
     assert.throws(() => A.getResult().check(null), /value is not a string/);
     assert.throws(() => B.methodArgs("join").check([[1]]), "arr[0] is not a string");
@@ -219,8 +232,8 @@ describe("ts-interface-checker", () => {
 
   it("should respect inherited interfaces", () => {
     const {Type} = createCheckers({
-      Base: t.iface([], [t.prop("a", "string")]),
-      Type: t.iface(["Base"], [t.prop("b", "number")]),
+      Base: t.iface([], {a: "string"}),
+      Type: t.iface(["Base"], {b: "number"}),
     });
     Type.check({a: "foo", b: 17});
     assert.throws(() => Type.check({b: 17}), /value.a is missing/);

@@ -2,6 +2,7 @@
 
 // jshint expr:true
 
+const assert = require("chai").assert;
 const Benchmark = require("benchmark");
 const {createCheckers} = require("../../dist/index");
 const data = require("./data.json");
@@ -11,14 +12,12 @@ const pbjsStaticCls = require("./static_pbjs");
 const {ITest} = createCheckers(bench);
 
 const badData = Object.assign({}, data, {uint32: "asdf"});
-try {
-  ITest.check(badData);
-} catch (e) {
-  console.log("ITest", e.message);
-}
 
-const x = pbjsStaticCls.Test.verify(badData);
-console.log("pbjs", x);
+assert.throws(() => ITest.check(badData), /\.uint32 is none of number, null/);
+assert.match(pbjsStaticCls.Test.verify(badData), /integer expected/);
+
+assert.strictEqual(ITest.check(data), undefined);
+assert.strictEqual(pbjsStaticCls.Test.verify(data), null);
 
 const suite = new Benchmark.Suite("encode/decode");
 suite
