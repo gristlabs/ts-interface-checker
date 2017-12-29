@@ -8,8 +8,7 @@
     "outDir": "dist",
     "declaration": true
   },
-  "files": [
-    "lib/types.ts",
-    "lib/validate.ts"
+  "include": [
+    "lib/*.ts"
   ]
 }
