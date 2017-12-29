@@ -19,6 +19,9 @@
     "validator",
     "check"
   ],
+  "files": [
+    "dist"
+  ],
   "author": "Grist Labs",
   "license": "Apache-2.0",
   "nyc": {

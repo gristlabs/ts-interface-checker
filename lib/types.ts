@@ -7,11 +7,8 @@ import {IContext, NoopContext} from "./util";
 
 export type CheckerFunc = (value: any, ctx: IContext) => boolean;
 
-/** Base Node. */
-export class TNode {}
-
 /** Node that represents a type. */
-export abstract class TType extends TNode {
+export abstract class TType {
   public abstract getChecker(suite: ITypeSuite, strict: boolean): CheckerFunc;
 }
 
@@ -237,8 +234,8 @@ export class TOptional {
 /**
  * Defines a property in an interface.
  */
-export class TProp extends TNode {
-  constructor(public name: string, public ttype: TType, public isOpt: boolean) { super(); }
+export class TProp {
+  constructor(public name: string, public ttype: TType, public isOpt: boolean) {}
 }
 
 /**
@@ -264,8 +261,8 @@ export class TFunc extends TType {
 export function param(name: string, typeSpec: TypeSpec, isOpt?: boolean): TParam {
   return new TParam(name, parseSpec(typeSpec), Boolean(isOpt));
 }
-export class TParam extends TNode {
-  constructor(public name: string, public ttype: TType, public isOpt: boolean) { super(); }
+export class TParam {
+  constructor(public name: string, public ttype: TType, public isOpt: boolean) {}
 }
 
 /**

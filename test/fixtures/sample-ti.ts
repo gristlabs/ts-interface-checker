@@ -1,4 +1,3 @@
-// tslint:disable:object-literal-key-quotes
 import * as t from "../../lib/types";
 
 export const ICacheItem = t.iface([], {
@@ -28,6 +27,7 @@ export const ISampling = t.iface(["ICacheItem"], {
   "xarray2": t.array("MyType"),
   "xtuple": t.tuple("string", "number"),
   "xunion": t.union("number", "null"),
+  "xparen": t.union("number", "string"),
   "xiface": t.iface([], {
     "foo": "string",
     "bar": "number",

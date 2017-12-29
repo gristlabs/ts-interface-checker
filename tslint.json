@@ -6,6 +6,7 @@
     "jsRules": {},
     "rules": {
         "object-literal-sort-keys": false,
+        "object-literal-key-quotes": false,
         "variable-name": [true, "ban-keywords", "check-format", "allow-leading-underscore", "allow-pascal-case"],
         "max-classes-per-file": false
     },

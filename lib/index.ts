@@ -1,6 +1,14 @@
 import {basicTypes, CheckerFunc, ITypeSuite, TFunc, TIface, TType} from "./types";
 import {DetailContext, NoopContext} from "./util";
 
+/**
+ * Export functions used to define interfaces.
+ */
+export {
+  TArray, TFunc, TIface, TLiteral, TName, TOptional, TParam, TParamList, TProp, TTuple, TType, TUnion,
+  array, func, iface, lit, name, opt, param, tuple, union,
+} from "./types";
+
 export interface ICheckerSuite {
   [name: string]: Checker;
 }

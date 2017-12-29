@@ -43,15 +43,15 @@ exports.Square = t.iface([], {
 
 Now at runtime, to check if a value satisfies the Square interface:
 ```typescript
-import * as {fooTI} from "./foo-ti";
+import * as fooTI from "./foo-ti";
 import {createCheckers} from "ts-interface-checker";
 
 const {Square} = createCheckers(fooTI);
 
 Square.check({size: 1});                  // OK
 Square.check({size: 1, color: "green"});  // OK
-Square.check({color: "green"});           // Fails with "size is missing"
-Square.check({size: 4, color: 5});        // Fails with "color is not a string"
+Square.check({color: "green"});           // Fails with "value.size is missing"
+Square.check({size: 4, color: 5});        // Fails with "value.color is not a string"
 ```
 
 Note that `ts-interface-builder` is only needed for the build-time step, and
@@ -65,14 +65,14 @@ all type names when you call `createCheckers()`. E.g. given
 
 ```typescript
 // color.ts
-type Color = RGB | string;
-type RGB = [number, number, number];
+export type Color = RGB | string;
+export type RGB = [number, number, number];
 ```
 
 ```typescript
 // shape.ts
 import {Color} from "./color";
-interface Square {
+export interface Square {
   size: number;
   color?: Color;
 }
@@ -81,8 +81,8 @@ interface Square {
 the produced files `color-ti.ts` and `shape-ti.ts` do not automatically refer to each other, but
 expect you to relate them in `createCheckers()` call:
 ```typescript
-import * as {color} from "./color-ti";
-import * as {shape} from "./shape-ti";
+import * as color from "./color-ti";
+import * as shape from "./shape-ti";
 import {createCheckers} from "ts-interface-checker";
 
 const {Square} = createCheckers(shape, color);    // Pass in all required type suites.
@@ -99,5 +99,5 @@ code with strict checks will not accept them.
 Following on the example above:
 ```typescript
 Square.strictCheck({size: 1, color: [255,255,255], bg: "blue"});    // Fails with value.bg is extraneous
-Square.strictCheck({size: 1, color: [255,255,255,0.5]});            // Fails with value.color[3] is extraneous
+Square.strictCheck({size: 1, color: [255,255,255,0.5]});            // Fails with ...value.color[3] is extraneous
 ```
