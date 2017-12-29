@@ -1,0 +1,11 @@
+{
+  "compilerOptions": {
+    "target": "es2016",
+    "strict": true,
+    "noUnusedLocals": true,
+    "module": "commonjs"
+  },
+  "include": [
+    "proto-bench-ti.ts"
+  ]
+}
