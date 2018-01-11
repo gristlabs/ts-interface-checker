@@ -7,6 +7,7 @@ import {DetailContext, NoopContext} from "./util";
 export {
   TArray, TFunc, TIface, TLiteral, TName, TOptional, TParam, TParamList, TProp, TTuple, TType, TUnion,
   array, func, iface, lit, name, opt, param, tuple, union,
+  BasicType, ITypeSuite,
 } from "./types";
 
 export interface ICheckerSuite {

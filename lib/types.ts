@@ -298,7 +298,7 @@ export class TParamList extends TType {
 /**
  * Single TType implementation for all basic built-in types.
  */
-class BasicType extends TType {
+export class BasicType extends TType {
   constructor(public validator: (value: any) => boolean, private message: string) { super(); }
 
   public getChecker(suite: ITypeSuite, strict: boolean): CheckerFunc {
@@ -321,3 +321,11 @@ export const basicTypes: ITypeSuite = {
   null:       new BasicType((v) => (v === null), "is not null"),
   never:      new BasicType((v) => false, "is unexpected"),
 };
+
+// Support `Buffer` as type as well, but only if available (it is in nodejs, not in browsers).
+declare abstract class Buffer {
+  public static isBuffer(value: any): boolean;
+}
+if (typeof Buffer !== "undefined") {
+  basicTypes.Buffer = new BasicType((v) => Buffer.isBuffer(v), "is not a Buffer");
+}

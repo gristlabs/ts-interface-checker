@@ -166,6 +166,7 @@ describe("ts-interface-checker", () => {
         void: "void",
         undefined: "undefined",
         null: "null",
+        Buffer: "Buffer",
       }),
       Never: t.name("never"),
     });
@@ -179,6 +180,7 @@ describe("ts-interface-checker", () => {
       void:       null,
       undefined:  void 0,
       null:       null,
+      Buffer:     Buffer.from("buf"),
     });
     assert.throws(() => Type.getProp("number").check(null), "value is not a number");
     assert.throws(() => Type.getProp("object").check(null), "value is not an object");
@@ -189,6 +191,7 @@ describe("ts-interface-checker", () => {
     assert.throws(() => Type.getProp("undefined").check(null), "value is not undefined");
     assert.throws(() => Type.getProp("null").check(undefined), "value is not null");
     assert.throws(() => Never.check(null), "value is unexpected");
+    assert.throws(() => Type.getProp("Buffer").check("foo"), "value is not a Buffer");
   });
 
   it("should check function parameters and results", () => {
