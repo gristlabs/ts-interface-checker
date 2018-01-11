@@ -1,8 +1,13 @@
 # ts-interface-checker
 
+[![Build Status](https://travis-ci.org/gristlabs/ts-interface-checker.svg?branch=master)](https://travis-ci.org/gristlabs/ts-interface-checker)
+[![npm version](https://badge.fury.io/js/ts-interface-checker.svg)](https://badge.fury.io/js/ts-interface-checker)
+
+
 > Runtime library to validate data against TypeScript interfaces.
 
-This package is the runtime support for validators created by `ts-interface-builder`.
+This package is the runtime support for validators created by
+[ts-interface-builder](https://github.com/gristlabs/ts-interface-builder).
 It allows validating data, such as parsed JSON objects received
 over the network, or parsed JSON or YAML files, to check if they satisfy a
 TypeScript interface, and to produce informative error messages if they do not.

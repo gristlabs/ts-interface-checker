@@ -22,7 +22,7 @@
   "files": [
     "dist"
   ],
-  "author": "Grist Labs",
+  "author": "Dmitry S, Grist Labs",
   "license": "Apache-2.0",
   "nyc": {
     "extension": [
