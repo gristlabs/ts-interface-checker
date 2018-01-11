@@ -1,8 +1,9 @@
 import {assert} from "chai";
 import {createCheckers} from "../lib/index";
 import * as t from "../lib/types";
-import * as sample from "./fixtures/sample-ti";
-import * as shapes from "./fixtures/shapes-ti";
+import greetTI from "./fixtures/greet-ti";
+import sample from "./fixtures/sample-ti";
+import shapes from "./fixtures/shapes-ti";
 
 function noop() { /* noop */ }
 
@@ -242,5 +243,16 @@ describe("ts-interface-checker", () => {
     assert.throws(() => Type.check({b: 17}), /value.a is missing/);
     assert.throws(() => Type.check({a: 17, b: 17}), /value.a is not a string/);
     assert.throws(() => Type.check({a: "foo"}), /value.b is missing/);
+  });
+
+  it("should check method calls as in README docs", () => {
+    const {Greeter} = createCheckers(greetTI);
+
+    Greeter.methodArgs("greet").check(["Bob"]);     // OK
+    assert.throws(() => Greeter.methodArgs("greet").check([17]), /name is not a string/);
+    assert.throws(() => Greeter.methodArgs("greet").check([]), /name is missing/);
+
+    Greeter.methodResult("greet").check("hello");   // OK
+    assert.throws(() => Greeter.methodResult("greet").check(null), /value is not a string/);
   });
 });

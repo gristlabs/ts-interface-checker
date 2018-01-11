@@ -1,5 +1,5 @@
-// tslint:disable:object-literal-key-quotes
 import * as t from "../../lib/types";
+// tslint:disable:object-literal-key-quotes
 
 export const Square = t.iface([], {
   "kind": t.lit("square"),
@@ -18,3 +18,11 @@ export const Circle = t.iface([], {
 });
 
 export const Shape = t.union("Square", "Rectangle", "Circle");
+
+const exportedTypeSuite: t.ITypeSuite = {
+  Square,
+  Rectangle,
+  Circle,
+  Shape,
+};
+export default exportedTypeSuite;

@@ -273,11 +273,17 @@ export class TParamList extends TType {
 
   public getChecker(suite: ITypeSuite, strict: boolean): CheckerFunc {
     const itemCheckers = this.params.map((t) => t.ttype.getChecker(suite, strict));
+    const testCtx = new NoopContext();
+    const isParamRequired: boolean[] = this.params.map((param, i) =>
+      !param.isOpt && !itemCheckers[i](undefined, testCtx));
+
     const checker = (value: any, ctx: IContext) => {
       if (!Array.isArray(value)) { return ctx.fail(null, "is not an array", 0); }
       for (let i = 0; i < itemCheckers.length; i++) {
         const p = this.params[i];
-        if (!p.isOpt || value[i] !== undefined) {
+        if (value[i] === undefined) {
+          if (isParamRequired[i]) { return ctx.fail(p.name, "is missing", 1); }
+        } else {
           const ok = itemCheckers[i](value[i], ctx);
           if (!ok) { return ctx.fail(p.name, null, 1); }
         }

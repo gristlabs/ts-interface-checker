@@ -1,4 +1,5 @@
 import * as t from "../../lib/types";
+// tslint:disable:object-literal-key-quotes
 
 export const ICacheItem = t.iface([], {
   "key": "string",
@@ -39,3 +40,11 @@ export const ISampling = t.iface(["ICacheItem"], {
   "ximplicitFunc": t.func("number", t.param("price", "any")),
   "ximplicitFunc2": t.func("any", t.param("price", "any")),
 });
+
+const exportedTypeSuite: t.ITypeSuite = {
+  ICacheItem,
+  ILRUCache,
+  MyType,
+  ISampling,
+};
+export default exportedTypeSuite;

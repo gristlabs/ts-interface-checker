@@ -27,23 +27,24 @@ interface Square {
 
 The first step is to generate some code for runtime checks:
 ```bash
-$(npm bin)/ts-interface-builder foo.ts
+`npm bin`/ts-interface-builder foo.ts
 ```
 
 It produces a file like this:
 ```typescript
 // foo-ti.js
-const t = require('ts-interface-checker');
+import * as t from "ts-interface-checker";
 
-exports.Square = t.iface([], {
+export const Square = t.iface([], {
   "size": "number",
   "color": t.opt("string"),
 });
+...
 ```
 
 Now at runtime, to check if a value satisfies the Square interface:
 ```typescript
-import * as fooTI from "./foo-ti";
+import fooTI from "./foo-ti";
 import {createCheckers} from "ts-interface-checker";
 
 const {Square} = createCheckers(fooTI);
@@ -57,6 +58,31 @@ Square.check({size: 4, color: 5});        // Fails with "value.color is not a st
 Note that `ts-interface-builder` is only needed for the build-time step, and
 `ts-interface-checker` is needed at runtime. That's why the recommendation is to npm-install the
 former using `--save-dev` flag and the latter using `--save`.
+
+## Checking method calls
+
+If you have an interface with methods, you can validate method call arguments and return values:
+```typescript
+// greet.ts
+interface Greeter {
+  greet(name: string): string;
+}
+```
+
+After generating the runtime code, you can now check calls like:
+```typescript
+import greetTI from "./greet-ti";
+import {createCheckers} from "ts-interface-checker";
+
+const {Greeter} = createCheckers(greetTI);
+
+Greeter.methodArgs("greet").check(["Bob"]);     // OK
+Greeter.methodArgs("greet").check([17]);        // Fails with "value.name is not a string"
+Greeter.methodArgs("greet").check([]);          // Fails with "value.name is missing"
+
+Greeter.methodResult("greet").check("hello");   // OK
+Greeter.methodResult("greet").check(null);      // Fails with "value is not a string"
+```
 
 ## Type suites
 
@@ -81,8 +107,8 @@ export interface Square {
 the produced files `color-ti.ts` and `shape-ti.ts` do not automatically refer to each other, but
 expect you to relate them in `createCheckers()` call:
 ```typescript
-import * as color from "./color-ti";
-import * as shape from "./shape-ti";
+import color from "./color-ti";
+import shape from "./shape-ti";
 import {createCheckers} from "ts-interface-checker";
 
 const {Square} = createCheckers(shape, color);    // Pass in all required type suites.
