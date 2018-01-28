@@ -1,6 +1,6 @@
 {
   "name": "ts-interface-checker",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Runtime library to validate data against TypeScript interfaces",
   "main": "dist/index",
   "typings": "dist/index",
@@ -9,7 +9,6 @@
     "watch": "tsc -w",
     "test": "tsc && nyc mocha -R list test/",
     "bench": "tsc && node test/bench/bench.js",
-
     "preversion": "npm test",
     "version": "npm run build && git add dist/"
   },
