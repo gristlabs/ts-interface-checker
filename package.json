@@ -8,7 +8,10 @@
     "build": "tsc",
     "watch": "tsc -w",
     "test": "tsc && nyc mocha -R list test/",
-    "bench": "tsc && node test/bench/bench.js"
+    "bench": "tsc && node test/bench/bench.js",
+
+    "preversion": "npm test",
+    "version": "npm run build && git add dist/"
   },
   "keywords": [
     "typescript",
@@ -24,6 +27,13 @@
   ],
   "author": "Dmitry S, Grist Labs",
   "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/gristlabs/ts-interface-checker"
+  },
+  "bugs": {
+    "url": "https://github.com/gristlabs/ts-interface-checker/issues"
+  },
   "nyc": {
     "extension": [
       ".ts"
