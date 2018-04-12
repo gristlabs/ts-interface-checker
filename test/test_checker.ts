@@ -168,6 +168,7 @@ describe("ts-interface-checker", () => {
         undefined: "undefined",
         null: "null",
         Buffer: "Buffer",
+        Uint8Array: "Uint8Array",
       }),
       Never: t.name("never"),
     });
@@ -182,6 +183,7 @@ describe("ts-interface-checker", () => {
       undefined:  void 0,
       null:       null,
       Buffer:     Buffer.from("buf"),
+      Uint8Array: new Uint8Array(10),
     });
     assert.throws(() => Type.getProp("number").check(null), "value is not a number");
     assert.throws(() => Type.getProp("object").check(null), "value is not an object");
@@ -193,6 +195,7 @@ describe("ts-interface-checker", () => {
     assert.throws(() => Type.getProp("null").check(undefined), "value is not null");
     assert.throws(() => Never.check(null), "value is unexpected");
     assert.throws(() => Type.getProp("Buffer").check("foo"), "value is not a Buffer");
+    assert.throws(() => Type.getProp("Uint8Array").check("foo"), "value is not a Uint8Array");
   });
 
   it("should check function parameters and results", () => {

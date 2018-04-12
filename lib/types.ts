@@ -335,3 +335,9 @@ declare abstract class Buffer {
 if (typeof Buffer !== "undefined") {
   basicTypes.Buffer = new BasicType((v) => Buffer.isBuffer(v), "is not a Buffer");
 }
+
+// Support typed arrays of various flavors
+for (const array of [Int8Array, Uint8Array, Uint8ClampedArray, Int16Array, Uint16Array,
+                     Int32Array, Uint32Array, Float32Array, Float64Array, ArrayBuffer]) {
+  basicTypes[array.name] = new BasicType((v) => (v instanceof array), `is not a ${array.name}`);
+}
