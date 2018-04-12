@@ -373,3 +373,10 @@ exports.basicTypes = {
 if (typeof Buffer !== "undefined") {
     exports.basicTypes.Buffer = new BasicType((v) => Buffer.isBuffer(v), "is not a Buffer");
 }
+// Support typed arrays of various flavors
+for (const array of [Int8Array, Uint8Array, Uint8ClampedArray, Int16Array, Uint16Array,
+    Int32Array, Uint32Array, Float32Array, Float64Array]) {
+    if (typeof array !== "undefined") {
+        exports.basicTypes[array.name] = new BasicType((v) => (v instanceof array), `is not a ${array.name}`);
+    }
+}
