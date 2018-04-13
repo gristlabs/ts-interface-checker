@@ -261,6 +261,6 @@ describe("ts-interface-checker", () => {
 
   it("should make type available", () => {
     const {Greeter} = createCheckers(greetTI);
-    assert(Greeter.getType() instanceof t.TIface);
+    assert.instanceOf(Greeter.getType(), t.TIface);
   });
 });

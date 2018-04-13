@@ -138,6 +138,12 @@ class Checker {
         return new Checker(this.suite, this.ttype.result);
     }
     /**
+     * Return the type for which this is a checker.
+     */
+    getType() {
+        return this.ttype;
+    }
+    /**
      * Actual implementation of check() and strictCheck().
      */
     _doCheck(checkerFunc, value) {
