@@ -258,4 +258,9 @@ describe("ts-interface-checker", () => {
     Greeter.methodResult("greet").check("hello");   // OK
     assert.throws(() => Greeter.methodResult("greet").check(null), /value is not a string/);
   });
+
+  it("should make type available", () => {
+    const {Greeter} = createCheckers(greetTI);
+    assert.instanceOf(Greeter.getType(), t.TIface);
+  });
 });

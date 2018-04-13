@@ -73,6 +73,10 @@ export declare class Checker {
      */
     getResult(): Checker;
     /**
+     * Return the type for which this is a checker.
+     */
+    getType(): TType;
+    /**
      * Actual implementation of check() and strictCheck().
      */
     private _doCheck(checkerFunc, value);
