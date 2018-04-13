@@ -129,6 +129,13 @@ export class Checker {
   }
 
   /**
+   * Return the type for which this is a checker.
+   */
+  public getType(): TType {
+    return this.ttype;
+  }
+
+  /**
    * Actual implementation of check() and strictCheck().
    */
   private _doCheck(checkerFunc: CheckerFunc, value: any): void {
