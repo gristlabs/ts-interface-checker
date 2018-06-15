@@ -263,4 +263,41 @@ describe("ts-interface-checker", () => {
     const {Greeter} = createCheckers(greetTI);
     assert.instanceOf(Greeter.getType(), t.TIface);
   });
+
+  it("should allow getting error details", () => {
+    const {Shape} = createCheckers(shapes);
+    const {Type} = createCheckers({
+      Foo: t.iface([], {foo: "number"}),
+      Type: t.union(t.iface([], {a: "Foo"}),
+                    t.iface([], {a: "number"})),
+    });
+
+    assert.isNull(Shape.validate({kind: "square", size: 17}));
+    assert.isNull(Shape.validate({kind: "rectangle", width: 17, height: 4}));
+    assert.isNull(Shape.validate({kind: "circle", radius: 0.5}));
+
+    // Extraneous property.
+    assert.isNull(Shape.validate({kind: "square", size: 17, depth: 5}));
+    assert.deepEqual(Shape.strictValidate({kind: "square", size: 17, depth: 5}), [{
+      path: "value.depth",
+      message: "value is none of Square, Rectangle, Circle; value is not a Square; value.depth is extraneous",
+    }]);
+
+    // Mismatching or missing kind.
+    assert.deepEqual(Shape.validate({kind: "square", width: 17, height: 4}), [{
+      path: "value.size",
+      message: "value is none of Square, Rectangle, Circle; value is not a Square; value.size is missing",
+    }]);
+
+    assert.isNull(Type.validate({a: 12}));
+    assert.isNull(Type.validate({a: {foo: 12}}));
+    assert.deepEqual(Type.validate({a: "x"}), [{
+      path: "value.a",
+      message: "value is none of 2 types; value.a is not a number",
+    }]);
+    assert.deepEqual(Type.validate({a: {foo: "x"}}), [{
+      path: "value.a.foo",
+      message: "value is none of 2 types; value.a is not a Foo; value.a.foo is not a number",
+    }]);
+  });
 });
