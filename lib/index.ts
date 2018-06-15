@@ -1,5 +1,5 @@
 import {basicTypes, CheckerFunc, ITypeSuite, TFunc, TIface, TType} from "./types";
-import {DetailContext, NoopContext} from "./util";
+import {DetailContext, IErrorDetail, NoopContext} from "./util";
 
 /**
  * Export functions used to define interfaces.
@@ -12,14 +12,6 @@ export {
 
 export interface ICheckerSuite {
   [name: string]: Checker;
-}
-
-/**
- * IErrorDetail describes errors as returned by the validate() and validateStrict() methods.
- */
-export interface IErrorDetail {
-  path: string;
-  message: string;
 }
 
 /**
@@ -77,7 +69,7 @@ export class Checker {
    * Returns an error object describing the errors if the given value does not satisfy this
    * Checker's type, or null if it does.
    */
-  public validate(value: any): IErrorDetail[]|null {
+  public validate(value: any): IErrorDetail|null {
     return this._doValidate(this.checkerPlain, value);
   }
 
@@ -100,7 +92,7 @@ export class Checker {
    * Returns an error object describing the errors if the given value does not satisfy this
    * Checker's type strictly, or null if it does.
    */
-  public strictValidate(value: any): IErrorDetail[]|null {
+  public strictValidate(value: any): IErrorDetail|null {
     return this._doValidate(this.checkerStrict, value);
   }
 
@@ -171,15 +163,14 @@ export class Checker {
     }
   }
 
-  private _doValidate(checkerFunc: CheckerFunc, value: any): IErrorDetail[]|null {
+  private _doValidate(checkerFunc: CheckerFunc, value: any): IErrorDetail|null {
     const noopCtx = new NoopContext();
     if (checkerFunc(value, noopCtx)) {
       return null;
     }
     const detailCtx = new DetailContext();
     checkerFunc(value, detailCtx);
-    const error = detailCtx.getError();
-    return [{path: error.path, message: error.message}];
+    return detailCtx.getErrorDetail();
   }
 
   private _getMethod(methodName: string): TFunc {

@@ -26,6 +26,15 @@ export interface IUnionResolver {
 }
 
 /**
+ * IErrorDetail describes errors as returned by the validate() and validateStrict() methods.
+ */
+export interface IErrorDetail {
+  path: string;
+  message: string;
+  nested?: IErrorDetail[];
+}
+
+/**
  * Fast implementation of IContext used for first-pass validation. If that fails, we can validate
  * using DetailContext to collect error messages. That's faster for the common case when messages
  * normally pass validation.
@@ -86,6 +95,25 @@ export class DetailContext implements IContext {
       }
     }
     return new VError(path, msgParts.join("; "));
+  }
+
+  public getErrorDetail(): IErrorDetail|null {
+    let path: string = "value";
+    const details: IErrorDetail[] = [];
+    for (let i = this._propNames.length - 1; i >= 0; i--) {
+      const p = this._propNames[i];
+      path += (typeof p === "number") ? `[${p}]` : (p ? `.${p}` : "");
+      const message = this._messages[i];
+      if (message) {
+        details.push({path, message});
+      }
+    }
+    let detail: IErrorDetail|null = null;
+    for (let i = details.length - 1; i >= 0; i--) {
+      if (detail) { details[i].nested = [detail]; }
+      detail = details[i];
+    }
+    return detail;
   }
 }
 

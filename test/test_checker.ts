@@ -278,26 +278,43 @@ describe("ts-interface-checker", () => {
 
     // Extraneous property.
     assert.isNull(Shape.validate({kind: "square", size: 17, depth: 5}));
-    assert.deepEqual(Shape.strictValidate({kind: "square", size: 17, depth: 5}), [{
-      path: "value.depth",
-      message: "value is none of Square, Rectangle, Circle; value is not a Square; value.depth is extraneous",
-    }]);
+    assert.deepEqual(Shape.strictValidate({kind: "square", size: 17, depth: 5}), {
+      path: "value", message: "is none of Square, Rectangle, Circle",
+      nested: [{
+        path: "value", message: "is not a Square",
+        nested: [{
+          path: "value.depth", message: "is extraneous",
+        }],
+      }],
+    });
 
     // Mismatching or missing kind.
-    assert.deepEqual(Shape.validate({kind: "square", width: 17, height: 4}), [{
-      path: "value.size",
-      message: "value is none of Square, Rectangle, Circle; value is not a Square; value.size is missing",
-    }]);
+    assert.deepEqual(Shape.validate({kind: "square", width: 17, height: 4}), {
+      path: "value", message: "is none of Square, Rectangle, Circle",
+      nested: [{
+        path: "value", message: "is not a Square",
+        nested: [{
+          path: "value.size", message: "is missing",
+        }],
+      }],
+    });
 
     assert.isNull(Type.validate({a: 12}));
     assert.isNull(Type.validate({a: {foo: 12}}));
-    assert.deepEqual(Type.validate({a: "x"}), [{
-      path: "value.a",
-      message: "value is none of 2 types; value.a is not a number",
-    }]);
-    assert.deepEqual(Type.validate({a: {foo: "x"}}), [{
-      path: "value.a.foo",
-      message: "value is none of 2 types; value.a is not a Foo; value.a.foo is not a number",
-    }]);
+    assert.deepEqual(Type.validate({a: "x"}), {
+      path: "value", message: "is none of 2 types",
+      nested: [{
+        path: "value.a", message: "is not a number",
+      }],
+    });
+    assert.deepEqual(Type.validate({a: {foo: "x"}}), {
+      path: "value", message: "is none of 2 types",
+      nested: [{
+        path: "value.a", message: "is not a Foo",
+        nested: [{
+          path: "value.a.foo", message: "is not a number",
+        }],
+      }],
+    });
   });
 });
