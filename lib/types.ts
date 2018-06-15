@@ -187,6 +187,8 @@ export class TIface extends TType {
     const baseCheckers = this.bases.map((b) => getNamedType(suite, b).getChecker(suite, strict));
     const propCheckers = this.props.map((prop) => prop.ttype.getChecker(suite, strict));
     const testCtx = new NoopContext();
+
+    // Consider a prop required if it's not optional AND does not allow for undefined as a value.
     const isPropRequired: boolean[] = this.props.map((prop, i) =>
       !prop.isOpt && !propCheckers[i](undefined, testCtx));
 

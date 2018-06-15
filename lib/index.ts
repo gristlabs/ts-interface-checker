@@ -1,5 +1,5 @@
 import {basicTypes, CheckerFunc, ITypeSuite, TFunc, TIface, TType} from "./types";
-import {DetailContext, NoopContext} from "./util";
+import {DetailContext, IErrorDetail, NoopContext} from "./util";
 
 /**
  * Export functions used to define interfaces.
@@ -66,6 +66,14 @@ export class Checker {
   }
 
   /**
+   * Returns an error object describing the errors if the given value does not satisfy this
+   * Checker's type, or null if it does.
+   */
+  public validate(value: any): IErrorDetail|null {
+    return this._doValidate(this.checkerPlain, value);
+  }
+
+  /**
    * Check that the given value satisfies this checker's type strictly. This checks that objects
    * and tuples have no extra members. Note that this prevents backward compatibility, so usually
    * a plain check() is more appropriate.
@@ -78,6 +86,14 @@ export class Checker {
    */
   public strictTest(value: any): boolean {
     return this.checkerStrict(value, new NoopContext());
+  }
+
+  /**
+   * Returns an error object describing the errors if the given value does not satisfy this
+   * Checker's type strictly, or null if it does.
+   */
+  public strictValidate(value: any): IErrorDetail|null {
+    return this._doValidate(this.checkerStrict, value);
   }
 
   /**
@@ -145,6 +161,16 @@ export class Checker {
       checkerFunc(value, detailCtx);
       throw detailCtx.getError();
     }
+  }
+
+  private _doValidate(checkerFunc: CheckerFunc, value: any): IErrorDetail|null {
+    const noopCtx = new NoopContext();
+    if (checkerFunc(value, noopCtx)) {
+      return null;
+    }
+    const detailCtx = new DetailContext();
+    checkerFunc(value, detailCtx);
+    return detailCtx.getErrorDetail();
   }
 
   private _getMethod(methodName: string): TFunc {

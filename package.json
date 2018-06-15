@@ -10,7 +10,7 @@
     "test": "tsc && nyc mocha -R list test/",
     "bench": "tsc && node test/bench/bench.js",
     "preversion": "npm test",
-    "version": "npm run build && git add dist/"
+    "version": "npm run build"
   },
   "keywords": [
     "typescript",
