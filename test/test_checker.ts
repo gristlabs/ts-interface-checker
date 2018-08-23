@@ -67,6 +67,18 @@ describe("ts-interface-checker", () => {
       "value is none of string, number, null, 1 more; value.foo is missing");
   });
 
+  it("should support basic and indirect type aliases", () => {
+    const {NumberAlias, NumberAlias2} = createCheckers(sample);
+
+    NumberAlias.check(-123.56);
+    assert.throws(() => NumberAlias.check("123"), /value is not a number/);
+    assert.throws(() => NumberAlias.check({foo: -123.56}), /value is not a number/);
+
+    NumberAlias2.check(-123.56);
+    assert.throws(() => NumberAlias2.check("123"), /value is not a number/);
+    assert.throws(() => NumberAlias2.check({foo: -123.56}), /value is not a number/);
+  });
+
   it("should generate good messages for complex unions", () => {
     const {Type} = createCheckers({
       Foo: t.iface([], {foo: "number"}),

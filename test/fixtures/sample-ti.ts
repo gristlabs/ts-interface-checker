@@ -16,12 +16,18 @@ export const ILRUCache = t.iface([], {
 
 export const MyType = t.union("boolean", "number", "ILRUCache");
 
+export const NumberAlias = t.name("number");
+
+export const NumberAlias2 = t.name("NumberAlias");
+
 export const ISampling = t.iface(["ICacheItem"], {
   "xstring": "string",
   "xstring2": "string",
   "xany": "any",
   "xnumber": "number",
   "xnumber2": t.opt("number"),
+  "xNumberAlias": "NumberAlias",
+  "xNumberAlias2": "NumberAlias2",
   "xnull": "null",
   "xMyType": "MyType",
   "xarray": t.array("string"),
@@ -45,6 +51,8 @@ const exportedTypeSuite: t.ITypeSuite = {
   ICacheItem,
   ILRUCache,
   MyType,
+  NumberAlias,
+  NumberAlias2,
   ISampling,
 };
 export default exportedTypeSuite;
