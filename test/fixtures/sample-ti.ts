@@ -20,6 +20,44 @@ export const NumberAlias = t.name("number");
 
 export const NumberAlias2 = t.name("NumberAlias");
 
+export const SomeEnum = t.enumtype({
+  "Foo": 0,
+  "Bar": 1,
+});
+
+export const Direction = t.enumtype({
+  "Up": 1,
+  "Down": 2,
+  "Left": 17,
+  "Right": 18,
+});
+
+export const DirectionStr = t.enumtype({
+  "Up": "UP",
+  "Down": "DOWN",
+  "Left": "LEFT",
+  "Right": "RIGHT",
+});
+
+export const BooleanLikeHeterogeneousEnum = t.enumtype({
+  "No": 0,
+  "Yes": "YES",
+});
+
+export const EnumComputed = t.enumtype({
+  "Foo": 0,
+  "Bar": 17,
+  "Baz": 16,
+});
+
+export const AnimalFlags = t.enumtype({
+  "None": 0,
+  "HasClaws": 1,
+  "CanFly": 2,
+  "EatsFish": 4,
+  "Endangered": 8,
+});
+
 export const ISampling = t.iface(["ICacheItem"], {
   "xstring": "string",
   "xstring2": "string",
@@ -42,6 +80,10 @@ export const ISampling = t.iface(["ICacheItem"], {
   "xliteral": t.union(t.lit("foo"), t.lit("ba\"r"), t.lit(3)),
   "xfunc": t.func("number", t.param("price", "number"), t.param("quantity", "number")),
   "xfunc2": t.func("number", t.param("price", "number"), t.param("quantity", "number", true)),
+  "xDirection": "Direction",
+  "xDirectionStr": "DirectionStr",
+  "xDirUp": t.union(t.enumlit("Direction", "Up"), t.enumlit("Direction", "Left")),
+  "xDirStrLeft": t.enumlit("DirectionStr", "Left"),
   "ximplicit": "any",
   "ximplicitFunc": t.func("number", t.param("price", "any")),
   "ximplicitFunc2": t.func("any", t.param("price", "any")),
@@ -53,6 +95,12 @@ const exportedTypeSuite: t.ITypeSuite = {
   MyType,
   NumberAlias,
   NumberAlias2,
+  SomeEnum,
+  Direction,
+  DirectionStr,
+  BooleanLikeHeterogeneousEnum,
+  EnumComputed,
+  AnimalFlags,
   ISampling,
 };
 export default exportedTypeSuite;
