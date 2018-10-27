@@ -79,6 +79,47 @@ describe("ts-interface-checker", () => {
     assert.throws(() => NumberAlias2.check({foo: -123.56}), /value is not a number/);
   });
 
+  it("should support enums", () => {
+    const tt = createCheckers(sample);
+    tt.Direction.check(1);
+    tt.Direction.check(18);
+    assert.throws(() => tt.Direction.check(3), /value is not a valid enum value/);
+    assert.throws(() => tt.Direction.check("Left"), /value is not a valid enum value/);
+
+    tt.DirectionStr.check("UP");
+    tt.DirectionStr.check("RIGHT");
+    assert.throws(() => tt.DirectionStr.check("foo"), /value is not a valid enum value/);
+    assert.throws(() => tt.DirectionStr.check("up"), /value is not a valid enum value/);
+
+    tt.BooleanLikeHeterogeneousEnum.check(0);
+    tt.BooleanLikeHeterogeneousEnum.check("YES");
+    assert.throws(() => tt.BooleanLikeHeterogeneousEnum.check("0"), /value is not.*valid/);
+    assert.throws(() => tt.BooleanLikeHeterogeneousEnum.check(1), /value is not.*valid/);
+
+    tt.EnumComputed.check(16);
+    assert.throws(() => tt.DirectionStr.check(18), /value is not a valid enum value/);
+  });
+
+  it("should support enum literals", () => {
+    const tt = createCheckers(sample, {
+      foo: t.enumlit("Direction", "Left"),
+      bar: t.enumlit("DirectionStr", "Right"),
+    });
+    tt.foo.check(17);
+    tt.bar.check("RIGHT");
+    assert.throws(() => tt.foo.check("Left"), /value is not Direction.Left/);
+    assert.throws(() => tt.foo.check(0), /value is not Direction.Left/);
+    assert.throws(() => tt.bar.check("LEFT"), /value is not DirectionStr.Right/);
+    assert.throws(() => tt.bar.check("Right"), /value is not DirectionStr.Right/);
+
+    assert.throws(() => createCheckers(sample, {foo: t.enumlit("Direction", "bad")}),
+      /Unknown value Direction.bad used in enumlit/);
+    assert.throws(() => createCheckers(sample, {foo: t.enumlit("MyType", "bad")}),
+      /Type MyType used in enumlit is not an enum type/);
+    assert.throws(() => createCheckers(sample, {foo: t.enumlit("Bad", "bad")}),
+      /Unknown type Bad/);
+  });
+
   it("should generate good messages for complex unions", () => {
     const {Type} = createCheckers({
       Foo: t.iface([], {foo: "number"}),
