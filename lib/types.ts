@@ -159,6 +159,51 @@ export class TUnion extends TType {
   }
 }
 
+/**
+ * Defines an enum type, e.g. enum({'A': 1, 'B': 2}).
+ */
+export function enumtype(values: {[name: string]: string|number}): TEnumType {
+  return new TEnumType(values);
+}
+export class TEnumType extends TType {
+  private _failMsg: string = "is not a valid enum value";
+  public readonly validValues: Set<string|number> = new Set();
+
+  constructor(public members: {[name: string]: string|number}) {
+    super();
+    this.validValues = new Set(Object.keys(members).map((name) => members[name]));
+  }
+  public getChecker(suite: ITypeSuite, strict: boolean): CheckerFunc {
+    return (value: any, ctx: IContext) =>
+      (this.validValues.has(value) ? true : ctx.fail(null, this._failMsg, 0));
+  }
+}
+
+/**
+ * Defines a literal enum value, such as Direction.Up, specified as enumlit("Direction", "Up").
+ */
+export function enumlit(name: string, prop: string): TEnumLiteral {
+  return new TEnumLiteral(name, prop);
+}
+export class TEnumLiteral extends TType {
+  private _failMsg: string;
+  constructor(public enumName: string, public prop: string) {
+    super();
+    this._failMsg = `is not ${enumName}.${prop}`;
+  }
+  public getChecker(suite: ITypeSuite, strict: boolean): CheckerFunc {
+    const ttype = getNamedType(suite, this.enumName);
+    if (!(ttype instanceof TEnumType)) {
+      throw new Error(`Type ${this.enumName} used in enumlit is not an enum type`);
+    }
+    const val = ttype.members[this.prop];
+    if (!ttype.members.hasOwnProperty(this.prop)) {
+      throw new Error(`Unknown value ${this.enumName}.${this.prop} used in enumlit`);
+    }
+    return (value: any, ctx: IContext) => (value === val) ? true : ctx.fail(null, this._failMsg, -1);
+  }
+}
+
 function makeIfaceProps(props: {[name: string]: TOptional|TypeSpec}): TProp[] {
   return Object.keys(props).map((name: string) => makeIfaceProp(name, props[name]));
 }

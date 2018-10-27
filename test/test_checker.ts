@@ -4,6 +4,8 @@ import * as t from "../lib/types";
 import greetTI from "./fixtures/greet-ti";
 import sample from "./fixtures/sample-ti";
 import shapes from "./fixtures/shapes-ti";
+import * as enumUnion from "./fixtures/enum-union";
+import enumUnionTI from "./fixtures/enum-union-ti";
 
 function noop() { /* noop */ }
 
@@ -77,6 +79,47 @@ describe("ts-interface-checker", () => {
     NumberAlias2.check(-123.56);
     assert.throws(() => NumberAlias2.check("123"), /value is not a number/);
     assert.throws(() => NumberAlias2.check({foo: -123.56}), /value is not a number/);
+  });
+
+  it("should support enums", () => {
+    const tt = createCheckers(sample);
+    tt.Direction.check(1);
+    tt.Direction.check(18);
+    assert.throws(() => tt.Direction.check(3), /value is not a valid enum value/);
+    assert.throws(() => tt.Direction.check("Left"), /value is not a valid enum value/);
+
+    tt.DirectionStr.check("UP");
+    tt.DirectionStr.check("RIGHT");
+    assert.throws(() => tt.DirectionStr.check("foo"), /value is not a valid enum value/);
+    assert.throws(() => tt.DirectionStr.check("up"), /value is not a valid enum value/);
+
+    tt.BooleanLikeHeterogeneousEnum.check(0);
+    tt.BooleanLikeHeterogeneousEnum.check("YES");
+    assert.throws(() => tt.BooleanLikeHeterogeneousEnum.check("0"), /value is not.*valid/);
+    assert.throws(() => tt.BooleanLikeHeterogeneousEnum.check(1), /value is not.*valid/);
+
+    tt.EnumComputed.check(16);
+    assert.throws(() => tt.DirectionStr.check(18), /value is not a valid enum value/);
+  });
+
+  it("should support enum literals", () => {
+    const tt = createCheckers(sample, {
+      foo: t.enumlit("Direction", "Left"),
+      bar: t.enumlit("DirectionStr", "Right"),
+    });
+    tt.foo.check(17);
+    tt.bar.check("RIGHT");
+    assert.throws(() => tt.foo.check("Left"), /value is not Direction.Left/);
+    assert.throws(() => tt.foo.check(0), /value is not Direction.Left/);
+    assert.throws(() => tt.bar.check("LEFT"), /value is not DirectionStr.Right/);
+    assert.throws(() => tt.bar.check("Right"), /value is not DirectionStr.Right/);
+
+    assert.throws(() => createCheckers(sample, {foo: t.enumlit("Direction", "bad")}),
+      /Unknown value Direction.bad used in enumlit/);
+    assert.throws(() => createCheckers(sample, {foo: t.enumlit("MyType", "bad")}),
+      /Type MyType used in enumlit is not an enum type/);
+    assert.throws(() => createCheckers(sample, {foo: t.enumlit("Bad", "bad")}),
+      /Unknown type Bad/);
   });
 
   it("should generate good messages for complex unions", () => {
@@ -158,6 +201,21 @@ describe("ts-interface-checker", () => {
     // Missing or misspelled property.
     assert.throws(() => Shape.check({kind: "rectangle", height: 4}), /value.width is missing/);
     assert.throws(() => Shape.check({kind: "circle", Radius: 0.5}), /value.radius is missing/);
+  });
+
+  it("should handle enum-based discriminated unions", () => {
+    const {Shape, Circle, Square} = createCheckers(enumUnionTI);
+    Shape.check({kind: enumUnion.ShapeKind.Square});
+    Shape.check({kind: enumUnion.ShapeKind.Circle});
+    Circle.check({kind: enumUnion.ShapeKind.Circle, radius: 0.5});
+    Square.check({kind: enumUnion.ShapeKind.Square, size: 3.0});
+
+    assert.throws(() => Circle.check({kind: enumUnion.ShapeKind.Square}),
+      /value.kind is not ShapeKind.Circle/);
+    assert.throws(() => Square.check({kind: enumUnion.ShapeKind.Square}),
+      /value.size is missing/);
+    assert.throws(() => Shape.check({kind: 20}),
+      /value.kind is not a valid enum value/);
   });
 
   it("should fail early when suite is missing types", () => {
