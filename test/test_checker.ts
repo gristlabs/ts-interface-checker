@@ -4,6 +4,8 @@ import * as t from "../lib/types";
 import greetTI from "./fixtures/greet-ti";
 import sample from "./fixtures/sample-ti";
 import shapes from "./fixtures/shapes-ti";
+import * as enumUnion from "./fixtures/enum-union";
+import enumUnionTI from "./fixtures/enum-union-ti";
 
 function noop() { /* noop */ }
 
@@ -199,6 +201,21 @@ describe("ts-interface-checker", () => {
     // Missing or misspelled property.
     assert.throws(() => Shape.check({kind: "rectangle", height: 4}), /value.width is missing/);
     assert.throws(() => Shape.check({kind: "circle", Radius: 0.5}), /value.radius is missing/);
+  });
+
+  it("should handle enum-based discriminated unions", () => {
+    const {Shape, Circle, Square} = createCheckers(enumUnionTI);
+    Shape.check({kind: enumUnion.ShapeKind.Square});
+    Shape.check({kind: enumUnion.ShapeKind.Circle});
+    Circle.check({kind: enumUnion.ShapeKind.Circle, radius: 0.5});
+    Square.check({kind: enumUnion.ShapeKind.Square, size: 3.0});
+
+    assert.throws(() => Circle.check({kind: enumUnion.ShapeKind.Square}),
+      /value.kind is not ShapeKind.Circle/);
+    assert.throws(() => Square.check({kind: enumUnion.ShapeKind.Square}),
+      /value.size is missing/);
+    assert.throws(() => Shape.check({kind: 20}),
+      /value.kind is not a valid enum value/);
   });
 
   it("should fail early when suite is missing types", () => {
