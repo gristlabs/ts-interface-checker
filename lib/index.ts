@@ -5,8 +5,9 @@ import {DetailContext, IErrorDetail, NoopContext} from "./util";
  * Export functions used to define interfaces.
  */
 export {
-  TArray, TFunc, TIface, TLiteral, TName, TOptional, TParam, TParamList, TProp, TTuple, TType, TUnion,
-  array, func, iface, lit, name, opt, param, tuple, union,
+  TArray, TEnumType, TEnumLiteral, TFunc, TIface, TLiteral, TName, TOptional, TParam, TParamList,
+  TProp, TTuple, TType, TUnion,
+  array, enumlit, enumtype, func, iface, lit, name, opt, param, tuple, union,
   BasicType, ITypeSuite,
 } from "./types";
 

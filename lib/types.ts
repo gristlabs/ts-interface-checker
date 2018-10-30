@@ -166,8 +166,8 @@ export function enumtype(values: {[name: string]: string|number}): TEnumType {
   return new TEnumType(values);
 }
 export class TEnumType extends TType {
-  private _failMsg: string = "is not a valid enum value";
   public readonly validValues: Set<string|number> = new Set();
+  private _failMsg: string = "is not a valid enum value";
 
   constructor(public members: {[name: string]: string|number}) {
     super();
