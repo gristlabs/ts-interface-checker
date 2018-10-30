@@ -1,6 +1,6 @@
 {
   "name": "ts-interface-checker",
-  "version": "0.1.5",
+  "version": "0.1.6",
   "description": "Runtime library to validate data against TypeScript interfaces",
   "main": "dist/index",
   "typings": "dist/index",
