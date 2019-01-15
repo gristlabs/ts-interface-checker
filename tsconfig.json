@@ -1,12 +1,13 @@
 {
   "compilerOptions": {
-    "target": "es2016",
+    "target": "es5",
     "strict": true,
     "noUnusedLocals": true,
     "module": "commonjs",
     "baseUrl": ".",
     "outDir": "dist",
-    "declaration": true
+    "declaration": true,
+    "lib": ["es2015"]
   },
   "include": [
     "lib/*.ts"
