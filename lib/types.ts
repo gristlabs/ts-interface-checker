@@ -274,8 +274,14 @@ export class TIface extends TType {
  * Defines an optional property on an interface.
  */
 export function opt(typeSpec: TypeSpec): TOptional { return new TOptional(parseSpec(typeSpec)); }
-export class TOptional {
-  constructor(public ttype: TType) {}
+export class TOptional extends TType {
+  constructor(public ttype: TType) {
+    super();
+  }
+
+  public getChecker(suite: ITypeSuite, strict: boolean): CheckerFunc {
+    throw new Error("Method not implemented.");
+  }
 }
 
 /**
