@@ -158,7 +158,7 @@ describe("ts-interface-checker", () => {
     assert.throws(() => Type.check(undefined), "value is not an array");
     assert.throws(() => Type.check([]), "value[0] is not a string");
     assert.throws(() => Type.check([4.5, "hello", {foo: "bar"}]), "value[0] is not a string");
-    assert.throws(() => Type.check(["hello", 4.5, {foo: "bar"}]), "value[2] is not a string or omitted");
+    assert.throws(() => Type.check(["hello", 4.5, {foo: "bar"}]), "value[2] is not a string");
     Type.strictCheck(["x", 4]);
     Type.strictCheck(["x", 4, "bar"]);
     assert.throws(() => Type.strictCheck(["x", 4, "bar", "baz"]), "value[3] is extraneous");
