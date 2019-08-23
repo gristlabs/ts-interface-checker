@@ -149,6 +149,21 @@ describe("ts-interface-checker", () => {
     assert.throws(() => Type.strictCheck(["x", 4, {foo: "bar"}, "baz"]), "value[3] is extraneous");
   });
 
+  it("should support optionals in tuples", () => {
+    const {Type} = createCheckers({
+      Type: t.tuple("string", "number", t.opt("string")),
+    });
+    Type.check(["hello", 4.5]);
+    Type.check(["hello", 4.5, "baz"]);
+    assert.throws(() => Type.check(undefined), "value is not an array");
+    assert.throws(() => Type.check([]), "value[0] is not a string");
+    assert.throws(() => Type.check([4.5, "hello", {foo: "bar"}]), "value[0] is not a string");
+    assert.throws(() => Type.check(["hello", 4.5, {foo: "bar"}]), "value[2] is not a string");
+    Type.strictCheck(["x", 4]);
+    Type.strictCheck(["x", 4, "bar"]);
+    assert.throws(() => Type.strictCheck(["x", 4, "bar", "baz"]), "value[3] is extraneous");
+  });
+
   it("should support arrays", () => {
     const {Type} = createCheckers({Type: t.array(t.iface([], {foo: "string"}))});
     Type.check([]);

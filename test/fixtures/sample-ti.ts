@@ -71,6 +71,7 @@ export const ISampling = t.iface(["ICacheItem"], {
   "xarray": t.array("string"),
   "xarray2": t.array("MyType"),
   "xtuple": t.tuple("string", "number"),
+  "xopttuple": t.tuple("string", t.opt("number")),
   "xunion": t.union("number", "null"),
   "xparen": t.union("number", "string"),
   "xiface": t.iface([], {
