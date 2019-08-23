@@ -42,7 +42,7 @@ function getNamedType(suite: ITypeSuite, name: string): TType {
  */
 export function name(value: string): TName { return new TName(value); }
 export class TName extends TType {
-  private _failMsg: string;
+  public readonly _failMsg: string;
   constructor(public name: string) { super(); this._failMsg = `is not a ${name}`; }
 
   public getChecker(suite: ITypeSuite, strict: boolean): CheckerFunc {
@@ -280,7 +280,15 @@ export class TOptional extends TType {
   }
 
   public getChecker(suite: ITypeSuite, strict: boolean): CheckerFunc {
-    throw new Error("Method not implemented.");
+    const itemChecker = this.ttype.getChecker(suite, strict);
+    return (value: any, ctx: IContext) => {
+      if (value === undefined) {
+        return true;
+      }
+
+      const failMsg: string = (this.ttype as TName)._failMsg;
+      return itemChecker(value, ctx) ? true : ctx.fail(null, `${failMsg} or omitted`, 0);
+    };
   }
 }
 
