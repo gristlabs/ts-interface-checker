@@ -83,8 +83,7 @@ export class DetailContext implements IContext {
     }
   }
 
-  public getError(): VError {
-    let path: string = "value";
+  public getError(path: string = "value"): VError {
     const msgParts: string[] = [];
     for (let i = this._propNames.length - 1; i >= 0; i--) {
       const p = this._propNames[i];
@@ -97,8 +96,7 @@ export class DetailContext implements IContext {
     return new VError(path, msgParts.join("; "));
   }
 
-  public getErrorDetail(): IErrorDetail|null {
-    let path: string = "value";
+  public getErrorDetail(path: string = "value"): IErrorDetail|null {
     const details: IErrorDetail[] = [];
     for (let i = this._propNames.length - 1; i >= 0; i--) {
       const p = this._propNames[i];

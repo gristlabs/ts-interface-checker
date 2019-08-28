@@ -244,7 +244,7 @@ describe("ts-interface-checker", () => {
     const {Type, Never} = createCheckers({
       Type: t.iface([], {
         any: "any",
-        number: "number",
+        myNumber: "number",
         object: "object",
         boolean: "boolean",
         string: "string",
@@ -254,12 +254,13 @@ describe("ts-interface-checker", () => {
         null: "null",
         Buffer: "Buffer",
         Uint8Array: "Uint8Array",
+        other: t.iface([], {a: "string"}),
       }),
       Never: t.name("never"),
     });
     Type.check({
       any:        1,
-      number:     1,
+      myNumber:     1,
       object:     {},
       boolean:    true,
       string:     "x",
@@ -269,18 +270,20 @@ describe("ts-interface-checker", () => {
       null:       null,
       Buffer:     Buffer.from("buf"),
       Uint8Array: new Uint8Array(10),
+      other:      {a: "foo"},
     });
-    assert.throws(() => Type.getProp("number").check(null), "value is not a number");
-    assert.throws(() => Type.getProp("object").check(null), "value is not an object");
-    assert.throws(() => Type.getProp("boolean").check(1), "value is not a boolean");
-    assert.throws(() => Type.getProp("string").check(1), "value is not a string");
-    assert.throws(() => Type.getProp("symbol").check("x"), "value is not a symbol");
-    assert.throws(() => Type.getProp("void").check("x"), "value is not void");
-    assert.throws(() => Type.getProp("undefined").check(null), "value is not undefined");
-    assert.throws(() => Type.getProp("null").check(undefined), "value is not null");
+    assert.throws(() => Type.getProp("myNumber").check(null), "value.myNumber is not a number");
+    assert.throws(() => Type.getProp("object").check(null), "value.object is not an object");
+    assert.throws(() => Type.getProp("boolean").check(1), "value.boolean is not a boolean");
+    assert.throws(() => Type.getProp("string").check(1), "value.string is not a string");
+    assert.throws(() => Type.getProp("symbol").check("x"), "value.symbol is not a symbol");
+    assert.throws(() => Type.getProp("void").check("x"), "value.void is not void");
+    assert.throws(() => Type.getProp("undefined").check(null), "value.undefined is not undefined");
+    assert.throws(() => Type.getProp("null").check(undefined), "value.null is not null");
     assert.throws(() => Never.check(null), "value is unexpected");
-    assert.throws(() => Type.getProp("Buffer").check("foo"), "value is not a Buffer");
-    assert.throws(() => Type.getProp("Uint8Array").check("foo"), "value is not a Uint8Array");
+    assert.throws(() => Type.getProp("Buffer").check("foo"), "value.Buffer is not a Buffer");
+    assert.throws(() => Type.getProp("Uint8Array").check("foo"), "value.Uint8Array is not a Uint8Array");
+    assert.throws(() => Type.getProp("other").check({b: "foo"}), "value.other.a is missing");
   });
 
   it("should check function parameters and results", () => {

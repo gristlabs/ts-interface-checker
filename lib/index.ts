@@ -43,7 +43,7 @@ export class Checker {
   private checkerStrict: CheckerFunc;
 
   // Create checkers by using `createCheckers()` function.
-  constructor(private suite: ITypeSuite, private ttype: TType) {
+  constructor(private suite: ITypeSuite, private ttype: TType, private _path?: string) {
     if (ttype instanceof TIface) {
       for (const p of ttype.props) {
         this.props.set(p.name, p.ttype);
@@ -104,7 +104,7 @@ export class Checker {
   public getProp(prop: string): Checker {
     const ttype = this.props.get(prop);
     if (!ttype) { throw new Error(`Type has no property ${prop}`); }
-    return new Checker(this.suite, ttype);
+    return new Checker(this.suite, ttype, `value.${prop}`);
   }
 
   /**
@@ -160,7 +160,7 @@ export class Checker {
     if (!checkerFunc(value, noopCtx)) {
       const detailCtx = new DetailContext();
       checkerFunc(value, detailCtx);
-      throw detailCtx.getError();
+      throw detailCtx.getError(this._path);
     }
   }
 
@@ -171,7 +171,7 @@ export class Checker {
     }
     const detailCtx = new DetailContext();
     checkerFunc(value, detailCtx);
-    return detailCtx.getErrorDetail();
+    return detailCtx.getErrorDetail(this._path);
   }
 
   private _getMethod(methodName: string): TFunc {
