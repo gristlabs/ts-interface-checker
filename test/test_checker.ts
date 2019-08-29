@@ -31,6 +31,12 @@ describe("ts-interface-checker", () => {
     ICacheItem.check({key: "foo", value: {}, size: 17, extra: "baz"});
     assert.throws(() => ICacheItem.strictCheck({key: "foo", value: {}, size: 17, extra: "baz"}),
       "value.extra is extraneous");
+
+    // Test that setReportedPath() does not interfere with behavior but updates message correctly.
+    ICacheItem.setReportedPath("HelloWorld");
+    ICacheItem.check({key: "foo", value: {}, size: 17, extra: "baz"});
+    assert.throws(() => ICacheItem.strictCheck({key: "foo", value: {}, size: 17, extra: "baz"}),
+      "HelloWorld.extra is extraneous");
   });
 
   it("should support quick tests", () => {
@@ -284,6 +290,9 @@ describe("ts-interface-checker", () => {
     assert.throws(() => Type.getProp("Buffer").check("foo"), "value.Buffer is not a Buffer");
     assert.throws(() => Type.getProp("Uint8Array").check("foo"), "value.Uint8Array is not a Uint8Array");
     assert.throws(() => Type.getProp("other").check({b: "foo"}), "value.other.a is missing");
+
+    Type.setReportedPath("test_record");
+    assert.throws(() => Type.getProp("other").check({b: "foo"}), "test_record.other.a is missing");
   });
 
   it("should check function parameters and results", () => {

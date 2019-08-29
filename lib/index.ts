@@ -43,7 +43,7 @@ export class Checker {
   private checkerStrict: CheckerFunc;
 
   // Create checkers by using `createCheckers()` function.
-  constructor(private suite: ITypeSuite, private ttype: TType, private _path?: string) {
+  constructor(private suite: ITypeSuite, private ttype: TType, private _path: string = 'value') {
     if (ttype instanceof TIface) {
       for (const p of ttype.props) {
         this.props.set(p.name, p.ttype);
@@ -51,6 +51,14 @@ export class Checker {
     }
     this.checkerPlain = this.ttype.getChecker(suite, false);
     this.checkerStrict = this.ttype.getChecker(suite, true);
+  }
+
+  /**
+   * Set the path to report in errors, instead of the default "value". (E.g. if the Checker is for
+   * a "person" interface, set path to "person" to report e.g. "person.name is not a string".)
+   */
+  public setReportedPath(path: string) {
+    this._path = path;
   }
 
   /**
@@ -104,7 +112,7 @@ export class Checker {
   public getProp(prop: string): Checker {
     const ttype = this.props.get(prop);
     if (!ttype) { throw new Error(`Type has no property ${prop}`); }
-    return new Checker(this.suite, ttype, `value.${prop}`);
+    return new Checker(this.suite, ttype, `${this._path}.${prop}`);
   }
 
   /**
