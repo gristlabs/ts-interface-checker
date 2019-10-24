@@ -132,3 +132,15 @@ Following on the example above:
 Square.strictCheck({size: 1, color: [255,255,255], bg: "blue"});    // Fails with value.bg is extraneous
 Square.strictCheck({size: 1, color: [255,255,255,0.5]});            // Fails with ...value.color[3] is extraneous
 ```
+
+## Date, and other basic type checking
+
+Some Types that come out of the box with TypeScript, such as Date are not currently supported. 
+
+To add these, see the workaround in [this issue](https://github.com/gristlabs/ts-interface-checker/issues/7):
+
+```
+import {basicTypes, BasicType} from 'ts-interface-checker/dist/types';
+basicTypes["Date"] = new BasicType((v) => (v instanceof Date), "is not a Date");
+```
+
