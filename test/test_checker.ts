@@ -260,6 +260,8 @@ describe("ts-interface-checker", () => {
         null: "null",
         Buffer: "Buffer",
         Uint8Array: "Uint8Array",
+        date: "Date",
+        regExp: "RegExp",
         other: t.iface([], {a: "string"}),
       }),
       Never: t.name("never"),
@@ -276,6 +278,8 @@ describe("ts-interface-checker", () => {
       null:       null,
       Buffer:     Buffer.from("buf"),
       Uint8Array: new Uint8Array(10),
+      date:       new Date(2019, 10, 24),
+      regExp:     /adsf/,
       other:      {a: "foo"},
     });
     assert.throws(() => Type.getProp("myNumber").check(null), "value.myNumber is not a number");
@@ -289,6 +293,13 @@ describe("ts-interface-checker", () => {
     assert.throws(() => Never.check(null), "value is unexpected");
     assert.throws(() => Type.getProp("Buffer").check("foo"), "value.Buffer is not a Buffer");
     assert.throws(() => Type.getProp("Uint8Array").check("foo"), "value.Uint8Array is not a Uint8Array");
+    assert.throws(() => Type.getProp("date").check(undefined), "value.date is not a Date");
+    assert.throws(() => Type.getProp("date").check(null), "value.date is not a Date");
+    assert.throws(() => Type.getProp("date").check("asdf"), "value.date is not a Date");
+    assert.throws(() => Type.getProp("date").check(20191004), "value.date is not a Date");
+    assert.throws(() => Type.getProp("regExp").check(null), "value.regExp is not a RegExp");
+    assert.throws(() => Type.getProp("regExp").check("foo"), "value.regExp is not a RegExp");
+    Type.getProp("regExp").check(new RegExp('foo'));
     assert.throws(() => Type.getProp("other").check({b: "foo"}), "value.other.a is missing");
 
     Type.setReportedPath("test_record");

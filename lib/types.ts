@@ -382,7 +382,18 @@ export const basicTypes: ITypeSuite = {
   undefined:  new BasicType((v) => (v === undefined), "is not undefined"),
   null:       new BasicType((v) => (v === null), "is not null"),
   never:      new BasicType((v) => false, "is unexpected"),
+
+  Date:       new BasicType(getIsNativeChecker("[object Date]"), "is not a Date"),
+  RegExp:     new BasicType(getIsNativeChecker("[object RegExp]"), "is not a RegExp"),
 };
+
+// This approach for checking native object types mirrors that of lodash. Its advantage over
+// `isinstance` is that it can still return true for native objects created in different JS
+// execution environments.
+const nativeToString = Object.prototype.toString;
+function getIsNativeChecker(tag: string) {
+  return (v: any) => typeof v === "object" && v && nativeToString.call(v) === tag;
+}
 
 // Support `Buffer` as type as well, but only if available (it is in nodejs, not in browsers).
 declare abstract class Buffer {
