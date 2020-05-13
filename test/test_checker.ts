@@ -6,6 +6,8 @@ import sample from "./fixtures/sample-ti";
 import shapes from "./fixtures/shapes-ti";
 import * as enumUnion from "./fixtures/enum-union";
 import enumUnionTI from "./fixtures/enum-union-ti";
+import * as intersection from "./fixtures/intersection";
+import intersectionTI from "./fixtures/intersection-ti";
 
 function noop() { /* noop */ }
 
@@ -237,6 +239,21 @@ describe("ts-interface-checker", () => {
       /value.size is missing/);
     assert.throws(() => Shape.check({kind: 20}),
       /value.kind is not a valid enum value/);
+  });
+
+  it("should handle intersections", () => {
+    const { Car, House } = createCheckers(intersectionTI);
+    Car.check({ numDoors: 2, numWheels: 4})
+    House.check({ numDoors: 6, numRooms: 8 })
+
+    assert.throws(() => Car.check({ numDoors: 2 }),
+      /value.numWheels is missing/);
+    assert.throws(() => Car.check({ numWheels: 4 }),
+      /value.numDoors is missing/);
+    assert.throws(() => House.check({ numDoors: 6 }),
+      /value.numRooms is missing/);
+    assert.throws(() => House.check({ numRooms: 8 }),
+      /value.numDoors is missing/);
   });
 
   it("should fail early when suite is missing types", () => {

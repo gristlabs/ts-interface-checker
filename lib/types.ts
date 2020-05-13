@@ -160,6 +160,27 @@ export class TUnion extends TType {
 }
 
 /**
+ * Defines an intersection type, e.g. intersection('number', 'null').
+ */
+export function intersection(...typeSpec: TypeSpec[]): TIntersection {
+  return new TIntersection(typeSpec.map((t) => parseSpec(t)));
+}
+export class TIntersection extends TType {
+  constructor(public ttypes: TType[]) {
+    super();
+  }
+
+  public getChecker(suite: ITypeSuite, strict: boolean): CheckerFunc {
+    const itemCheckers = this.ttypes.map((t) => t.getChecker(suite, strict));
+    return (value: any, ctx: IContext) => {
+      const ok = itemCheckers.every(checker => checker(value, ctx))
+      if (ok) { return true; }
+      return ctx.fail(null, null, 0);
+    };
+  }
+}
+
+/**
  * Defines an enum type, e.g. enum({'A': 1, 'B': 2}).
  */
 export function enumtype(values: {[name: string]: string|number}): TEnumType {
