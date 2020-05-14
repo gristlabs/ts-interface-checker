@@ -11,3 +11,20 @@ export type Car = Wheels & Doors
 export type House = Doors & {
   numRooms: number
 }
+
+export type MixedLiteral = ( 1 | 2 ) & ( 2 | 3 )
+
+export type SameKeyTypeA = {
+  x: {
+    foo: string
+  }
+}
+
+export type SameKeyTypeB = {
+  x: {
+    bar: number
+    optional?: number
+  }
+}
+
+export type SameKeyIntersection = SameKeyTypeA & SameKeyTypeB

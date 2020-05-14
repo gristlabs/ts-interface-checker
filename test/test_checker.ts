@@ -6,7 +6,6 @@ import sample from "./fixtures/sample-ti";
 import shapes from "./fixtures/shapes-ti";
 import * as enumUnion from "./fixtures/enum-union";
 import enumUnionTI from "./fixtures/enum-union-ti";
-import * as intersection from "./fixtures/intersection";
 import intersectionTI from "./fixtures/intersection-ti";
 
 function noop() { /* noop */ }
@@ -254,6 +253,63 @@ describe("ts-interface-checker", () => {
       /value.numRooms is missing/);
     assert.throws(() => House.check({ numRooms: 8 }),
       /value.numDoors is missing/);
+  });
+
+  it("should handle intersections with strict checks", () => {
+    const { Car, House } = createCheckers(intersectionTI);
+    Car.strictCheck({ numDoors: 2, numWheels: 4, })
+    House.strictCheck({ numDoors: 2, numRooms: 4, })
+
+    assert.throws(() => Car.strictCheck({ numDoors: 2, numWheels: 4, foo: 'foo' }),
+      /value.foo is extraneous/);
+    assert.throws(() => House.strictCheck({ numDoors: 2, numRooms: 4, bar: 'bar' }),
+      /value.bar is extraneous/);
+  });
+
+  it("should handle intersections with overlapping property names", () => {
+    const { SameKeyIntersection } = createCheckers(intersectionTI);
+    SameKeyIntersection.check({
+      x: {
+        foo: 'foo',
+        bar: 0
+      }
+    })
+    SameKeyIntersection.check({
+      x: {
+        foo: 'foo',
+        bar: 0,
+        optional: 4,
+      }
+    })
+
+    assert.throws(() => 
+        SameKeyIntersection.check({
+          x: {
+            foo: 'foo',
+          }
+        }), /bar is missing/);
+
+    assert.throws(() => 
+        SameKeyIntersection.check({
+          x: {
+            bar: 1,
+          }
+        }), /foo is missing/);
+
+    assert.throws(() => 
+        SameKeyIntersection.check({
+          x: {
+            foo: 1,
+            bar: 0
+          }
+        }), /foo is not a string/);
+  });
+
+  it("should handle mixed union and intersection literals", () => {
+    const { MixedLiteral } = createCheckers(intersectionTI);
+    MixedLiteral.check(2)
+    assert.throws(() => MixedLiteral.check(1))
+    assert.throws(() => MixedLiteral.check(3))
   });
 
   it("should fail early when suite is missing types", () => {

@@ -5,11 +5,14 @@
 
 import {IContext, NoopContext} from "./util";
 
-export type CheckerFunc = (value: any, ctx: IContext) => boolean;
+export type CheckerFunc = (value: any, ctx: IContext, allowedExtraneousProps?: Set<string>) => boolean;
 
 /** Node that represents a type. */
 export abstract class TType {
   public abstract getChecker(suite: ITypeSuite, strict: boolean): CheckerFunc;
+  public getPropSet(suite: ITypeSuite): Set<string> {
+    return new Set()
+  }
 }
 
 /**
@@ -45,12 +48,19 @@ export class TName extends TType {
   private _failMsg: string;
   constructor(public name: string) { super(); this._failMsg = `is not a ${name}`; }
 
+  public getPropSet(suite: ITypeSuite) {
+    const ttype = getNamedType(suite, this.name)
+    return ttype.getPropSet(suite)
+  }
+
   public getChecker(suite: ITypeSuite, strict: boolean): CheckerFunc {
     const ttype = getNamedType(suite, this.name);
     const checker = ttype.getChecker(suite, strict);
     if (ttype instanceof BasicType || ttype instanceof TName) { return checker; }
     // For complex types, add an additional "is not a <Type>" message on failure.
-    return (value: any, ctx: IContext) => checker(value, ctx) ? true : ctx.fail(null, this._failMsg, 0);
+    return (value: any, ctx: IContext, allowedExtraneousProps?: Set<string>) => {
+      return checker(value, ctx, allowedExtraneousProps) ? true : ctx.fail(null, this._failMsg, 0);
+    }
   }
 }
 
@@ -172,11 +182,14 @@ export class TIntersection extends TType {
 
   public getChecker(suite: ITypeSuite, strict: boolean): CheckerFunc {
     const itemCheckers = this.ttypes.map((t) => t.getChecker(suite, strict));
+    const propSets = this.ttypes.map((t) => t.getPropSet(suite))
+    const allProps = propSets.reduce(
+        (a, s) => new Set(Array.from(a).concat(Array.from(s))));
     return (value: any, ctx: IContext) => {
-      const ok = itemCheckers.every(checker => checker(value, ctx))
+      const ok = itemCheckers.every(checker => checker(value, ctx, allProps))
       if (ok) { return true; }
       return ctx.fail(null, null, 0);
-    };
+    }
   }
 }
 
@@ -249,6 +262,10 @@ export class TIface extends TType {
     this.propSet = new Set(props.map((p) => p.name));
   }
 
+  public getPropSet(suite: ITypeSuite) {
+    return this.propSet;
+  }
+
   public getChecker(suite: ITypeSuite, strict: boolean): CheckerFunc {
     const baseCheckers = this.bases.map((b) => getNamedType(suite, b).getChecker(suite, strict));
     const propCheckers = this.props.map((prop) => prop.ttype.getChecker(suite, strict));
@@ -279,10 +296,10 @@ export class TIface extends TType {
     if (!strict) { return checker; }
 
     // In strict mode, check also for unknown enumerable properties.
-    return (value: any, ctx: IContext) => {
+    return (value: any, ctx: IContext, allowedExtraneousProps = new Set()) => {
       if (!checker(value, ctx)) { return false; }
       for (const prop in value) {
-        if (!this.propSet.has(prop)) {
+        if (!this.propSet.has(prop) && !allowedExtraneousProps.has(prop)) {
           return ctx.fail(prop, "is extraneous", 2);
         }
       }
