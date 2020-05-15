@@ -7,11 +7,10 @@ import {IContext, NoopContext} from "./util";
 
 export type CheckerFunc = (value: any, ctx: IContext) => boolean;
 
-export type StrictFlag = boolean | {allowedProps: Set<string>};
-
 /** Node that represents a type. */
 export abstract class TType {
-  public abstract getChecker(suite: ITypeSuite, strict: StrictFlag): CheckerFunc;
+  // allowedProps is used for intersections, since strict checks require member types fo share properties.
+  public abstract getChecker(suite: ITypeSuite, strict: boolean, allowedProps?: Set<string>): CheckerFunc;
 }
 
 /**
@@ -47,9 +46,9 @@ export class TName extends TType {
   private _failMsg: string;
   constructor(public name: string) { super(); this._failMsg = `is not a ${name}`; }
 
-  public getChecker(suite: ITypeSuite, strict: StrictFlag): CheckerFunc {
+  public getChecker(suite: ITypeSuite, strict: boolean, allowedProps?: Set<string>): CheckerFunc {
     const ttype = getNamedType(suite, this.name);
-    const checker = ttype.getChecker(suite, strict);
+    const checker = ttype.getChecker(suite, strict, allowedProps);
     if (ttype instanceof BasicType || ttype instanceof TName) { return checker; }
     // For complex types, add an additional "is not a <Type>" message on failure.
     return (value: any, ctx: IContext) => checker(value, ctx) ? true : ctx.fail(null, this._failMsg, 0);
@@ -69,7 +68,7 @@ export class TLiteral extends TType {
     this._failMsg = `is not ${this.name}`;
   }
 
-  public getChecker(suite: ITypeSuite, strict: StrictFlag): CheckerFunc {
+  public getChecker(suite: ITypeSuite, strict: boolean): CheckerFunc {
     return (value: any, ctx: IContext) => (value === this.value) ? true : ctx.fail(null, this._failMsg, -1);
   }
 }
@@ -81,7 +80,7 @@ export function array(typeSpec: TypeSpec): TArray { return new TArray(parseSpec(
 export class TArray extends TType {
   constructor(public ttype: TType) { super(); }
 
-  public getChecker(suite: ITypeSuite, strict: StrictFlag): CheckerFunc {
+  public getChecker(suite: ITypeSuite, strict: boolean): CheckerFunc {
     const itemChecker = this.ttype.getChecker(suite, strict);
     return (value: any, ctx: IContext) => {
       if (!Array.isArray(value)) { return ctx.fail(null, "is not an array", 0); }
@@ -103,7 +102,7 @@ export function tuple(...typeSpec: TypeSpec[]): TTuple {
 export class TTuple extends TType {
   constructor(public ttypes: TType[]) { super(); }
 
-  public getChecker(suite: ITypeSuite, strict: StrictFlag): CheckerFunc {
+  public getChecker(suite: ITypeSuite, strict: boolean): CheckerFunc {
     const itemCheckers = this.ttypes.map((t) => t.getChecker(suite, strict));
     const checker = (value: any, ctx: IContext) => {
       if (!Array.isArray(value)) { return ctx.fail(null, "is not an array", 0); }
@@ -147,7 +146,7 @@ export class TUnion extends TType {
     }
   }
 
-  public getChecker(suite: ITypeSuite, strict: StrictFlag): CheckerFunc {
+  public getChecker(suite: ITypeSuite, strict: boolean): CheckerFunc {
     const itemCheckers = this.ttypes.map((t) => t.getChecker(suite, strict));
     return (value: any, ctx: IContext) => {
       const ur = ctx.unionResolver();
@@ -172,9 +171,9 @@ export class TIntersection extends TType {
     super();
   }
 
-  public getChecker(suite: ITypeSuite, strict: StrictFlag): CheckerFunc {
-    const extraProps = strict && {allowedProps: new Set()};
-    const itemCheckers = this.ttypes.map((t) => t.getChecker(suite, extraProps));
+  public getChecker(suite: ITypeSuite, strict: boolean): CheckerFunc {
+    const allowedProps = new Set();
+    const itemCheckers = this.ttypes.map((t) => t.getChecker(suite, strict, allowedProps));
     return (value: any, ctx: IContext) => {
       const ok = itemCheckers.every(checker => checker(value, ctx))
       if (ok) { return true; }
@@ -197,7 +196,7 @@ export class TEnumType extends TType {
     super();
     this.validValues = new Set(Object.keys(members).map((name) => members[name]));
   }
-  public getChecker(suite: ITypeSuite, strict: StrictFlag): CheckerFunc {
+  public getChecker(suite: ITypeSuite, strict: boolean): CheckerFunc {
     return (value: any, ctx: IContext) =>
       (this.validValues.has(value) ? true : ctx.fail(null, this._failMsg, 0));
   }
@@ -215,7 +214,7 @@ export class TEnumLiteral extends TType {
     super();
     this._failMsg = `is not ${enumName}.${prop}`;
   }
-  public getChecker(suite: ITypeSuite, strict: StrictFlag): CheckerFunc {
+  public getChecker(suite: ITypeSuite, strict: boolean): CheckerFunc {
     const ttype = getNamedType(suite, this.enumName);
     if (!(ttype instanceof TEnumType)) {
       throw new Error(`Type ${this.enumName} used in enumlit is not an enum type`);
@@ -252,7 +251,7 @@ export class TIface extends TType {
     this.propSet = new Set(props.map((p) => p.name));
   }
 
-  public getChecker(suite: ITypeSuite, strict: StrictFlag): CheckerFunc {
+  public getChecker(suite: ITypeSuite, strict: boolean, allowedProps?: Set<string>): CheckerFunc {
     const baseCheckers = this.bases.map((b) => getNamedType(suite, b).getChecker(suite, strict));
     const propCheckers = this.props.map((prop) => prop.ttype.getChecker(suite, strict));
     const testCtx = new NoopContext();
@@ -281,17 +280,17 @@ export class TIface extends TType {
 
     if (!strict) { return checker; }
 
-    let allowedProps = this.propSet;
-    if (typeof strict === 'object' && 'allowedProps' in strict) {
-      allowedProps = strict.allowedProps;
+    let propSet = this.propSet;
+    if (allowedProps) {
       this.propSet.forEach((prop) => allowedProps.add(prop));
+      propSet = allowedProps;
     }
 
     // In strict mode, check also for unknown enumerable properties.
     return (value: any, ctx: IContext) => {
       if (!checker(value, ctx)) { return false; }
       for (const prop in value) {
-        if (!allowedProps.has(prop)) {
+        if (!propSet.has(prop)) {
           return ctx.fail(prop, "is extraneous", 2);
         }
       }
@@ -309,7 +308,7 @@ export class TOptional extends TType {
     super();
   }
 
-  public getChecker(suite: ITypeSuite, strict: StrictFlag): CheckerFunc {
+  public getChecker(suite: ITypeSuite, strict: boolean): CheckerFunc {
     const itemChecker = this.ttype.getChecker(suite, strict);
     return (value: any, ctx: IContext) => {
       return value === undefined || itemChecker(value, ctx);
@@ -334,7 +333,7 @@ export function func(resultSpec: TypeSpec, ...params: TParam[]): TFunc {
 export class TFunc extends TType {
   constructor(public paramList: TParamList, public result: TType) { super(); }
 
-  public getChecker(suite: ITypeSuite, strict: StrictFlag): CheckerFunc {
+  public getChecker(suite: ITypeSuite, strict: boolean): CheckerFunc {
     return (value: any, ctx: IContext) => {
       return typeof value === "function" ? true : ctx.fail(null, "is not a function", 0);
     };
@@ -357,7 +356,7 @@ export class TParam {
 export class TParamList extends TType {
   constructor(public params: TParam[]) { super(); }
 
-  public getChecker(suite: ITypeSuite, strict: StrictFlag): CheckerFunc {
+  public getChecker(suite: ITypeSuite, strict: boolean): CheckerFunc {
     const itemCheckers = this.params.map((t) => t.ttype.getChecker(suite, strict));
     const testCtx = new NoopContext();
     const isParamRequired: boolean[] = this.params.map((param, i) =>
@@ -393,7 +392,7 @@ export class TParamList extends TType {
 export class BasicType extends TType {
   constructor(public validator: (value: any) => boolean, private message: string) { super(); }
 
-  public getChecker(suite: ITypeSuite, strict: StrictFlag): CheckerFunc {
+  public getChecker(suite: ITypeSuite, strict: boolean): CheckerFunc {
     return (value: any, ctx: IContext) => this.validator(value) ? true : ctx.fail(null, this.message, 0);
   }
 }
