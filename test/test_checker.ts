@@ -241,9 +241,10 @@ describe("ts-interface-checker", () => {
   });
 
   it("should handle intersections", () => {
-    const { Car, House } = createCheckers(intersectionTI);
+    const { Car, House, Tuples } = createCheckers(intersectionTI);
     Car.check({ numDoors: 2, numWheels: 4})
     House.check({ numDoors: 6, numRooms: 8 })
+    House.check({ numDoors: 6, numRooms: 8, numWheels: "none" })
 
     assert.throws(() => Car.check({ numDoors: 2 }),
       /value.numWheels is missing/);
@@ -251,19 +252,36 @@ describe("ts-interface-checker", () => {
       /value.numDoors is missing/);
     assert.throws(() => House.check({ numDoors: 6 }),
       /value.numRooms is missing/);
-    assert.throws(() => House.check({ numRooms: 8 }),
-      /value.numDoors is missing/);
+    assert.throws(() => House.check({ numRooms: 8, numDoors: false }),
+      /value.numDoors is not a number/);
+
+    Tuples.check(["foo", "bar"]);
+    Tuples.check(["foo", "bar", "baz"]);
+    assert.throws(() => Tuples.check(["foo", null]),
+      /value\[1\] is not a string/);
+    assert.throws(() => Tuples.check(["foo"]),
+      /value\[1\] is none of string, null/);
   });
 
   it("should handle intersections with strict checks", () => {
-    const { Car, House } = createCheckers(intersectionTI);
+    const { Car, House, Tuples } = createCheckers(intersectionTI);
     Car.strictCheck({ numDoors: 2, numWheels: 4, })
     House.strictCheck({ numDoors: 2, numRooms: 4, })
 
+    assert.throws(() => Car.strictCheck({ numDoors: 2, foo: 'foo' }),
+      /value.numWheels is missing/);
     assert.throws(() => Car.strictCheck({ numDoors: 2, numWheels: 4, foo: 'foo' }),
       /value.foo is extraneous/);
     assert.throws(() => House.strictCheck({ numDoors: 2, numRooms: 4, bar: 'bar' }),
       /value.bar is extraneous/);
+
+    Tuples.strictCheck(["foo", "bar"]);
+    assert.throws(() => Tuples.strictCheck(["foo", "bar", "baz"]),
+      /value\[2\] is extraneous/);
+    assert.throws(() => Tuples.strictCheck(["foo", null]),
+      /value\[1\] is not a string/);
+    assert.throws(() => Tuples.strictCheck(["foo"]),
+      /value\[1\] is none of string, null/);
   });
 
   it("should handle intersections with overlapping property names", () => {
@@ -308,8 +326,8 @@ describe("ts-interface-checker", () => {
   it("should handle mixed union and intersection literals", () => {
     const { MixedLiteral } = createCheckers(intersectionTI);
     MixedLiteral.check(2)
-    assert.throws(() => MixedLiteral.check(1))
-    assert.throws(() => MixedLiteral.check(3))
+    assert.throws(() => MixedLiteral.check(1));
+    assert.throws(() => MixedLiteral.check(3));
   });
 
   it("should fail early when suite is missing types", () => {

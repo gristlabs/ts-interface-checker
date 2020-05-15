@@ -1,16 +1,14 @@
-interface Wheels {
+export interface Wheels {
   numWheels: number
 }
 
-interface Doors {
+export interface Doors {
   numDoors: number
 }
 
 export type Car = Wheels & Doors
 
-export type House = Doors & {
-  numRooms: number
-}
+export type House = Doors & {numRooms: number} & object;
 
 export type MixedLiteral = ( 1 | 2 ) & ( 2 | 3 )
 
@@ -28,3 +26,5 @@ export type SameKeyTypeB = {
 }
 
 export type SameKeyIntersection = SameKeyTypeA & SameKeyTypeB
+
+export type Tuples = [string, string|null] & string[];

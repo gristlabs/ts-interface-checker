@@ -13,7 +13,7 @@ export const Car = t.intersection("Wheels", "Doors");
 
 export const House = t.intersection("Doors", t.iface([], {
   "numRooms": "number",
-}));
+}), "object");
 
 export const MixedLiteral = t.intersection(t.union(t.lit(1), t.lit(2)), t.union(t.lit(2), t.lit(3)));
 
@@ -32,6 +32,8 @@ export const SameKeyTypeB = t.iface([], {
 
 export const SameKeyIntersection = t.intersection("SameKeyTypeA", "SameKeyTypeB");
 
+export const Tuples = t.intersection(t.tuple("string", t.union("string", "null")), t.array("string"));
+
 const exportedTypeSuite: t.ITypeSuite = {
   Wheels,
   Doors,
@@ -41,5 +43,6 @@ const exportedTypeSuite: t.ITypeSuite = {
   SameKeyTypeA,
   SameKeyTypeB,
   SameKeyIntersection,
+  Tuples,
 };
 export default exportedTypeSuite;
