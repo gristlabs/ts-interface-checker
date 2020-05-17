@@ -6,6 +6,7 @@ import sample from "./fixtures/sample-ti";
 import shapes from "./fixtures/shapes-ti";
 import * as enumUnion from "./fixtures/enum-union";
 import enumUnionTI from "./fixtures/enum-union-ti";
+import intersectionTI from "./fixtures/intersection-ti";
 
 function noop() { /* noop */ }
 
@@ -237,6 +238,96 @@ describe("ts-interface-checker", () => {
       /value.size is missing/);
     assert.throws(() => Shape.check({kind: 20}),
       /value.kind is not a valid enum value/);
+  });
+
+  it("should handle intersections", () => {
+    const { Car, House, Tuples } = createCheckers(intersectionTI);
+    Car.check({ numDoors: 2, numWheels: 4})
+    House.check({ numDoors: 6, numRooms: 8 })
+    House.check({ numDoors: 6, numRooms: 8, numWheels: "none" })
+
+    assert.throws(() => Car.check({ numDoors: 2 }),
+      /value.numWheels is missing/);
+    assert.throws(() => Car.check({ numWheels: 4 }),
+      /value.numDoors is missing/);
+    assert.throws(() => House.check({ numDoors: 6 }),
+      /value.numRooms is missing/);
+    assert.throws(() => House.check({ numRooms: 8, numDoors: false }),
+      /value.numDoors is not a number/);
+
+    Tuples.check(["foo", "bar"]);
+    Tuples.check(["foo", "bar", "baz"]);
+    assert.throws(() => Tuples.check(["foo", null]),
+      /value\[1\] is not a string/);
+    assert.throws(() => Tuples.check(["foo"]),
+      /value\[1\] is none of string, null/);
+  });
+
+  it("should handle intersections with strict checks", () => {
+    const { Car, House, Tuples } = createCheckers(intersectionTI);
+    Car.strictCheck({ numDoors: 2, numWheels: 4, })
+    House.strictCheck({ numDoors: 2, numRooms: 4, })
+
+    assert.throws(() => Car.strictCheck({ numDoors: 2, foo: 'foo' }),
+      /value.numWheels is missing/);
+    assert.throws(() => Car.strictCheck({ numDoors: 2, numWheels: 4, foo: 'foo' }),
+      /value.foo is extraneous/);
+    assert.throws(() => House.strictCheck({ numDoors: 2, numRooms: 4, bar: 'bar' }),
+      /value.bar is extraneous/);
+
+    Tuples.strictCheck(["foo", "bar"]);
+    assert.throws(() => Tuples.strictCheck(["foo", "bar", "baz"]),
+      /value\[2\] is extraneous/);
+    assert.throws(() => Tuples.strictCheck(["foo", null]),
+      /value\[1\] is not a string/);
+    assert.throws(() => Tuples.strictCheck(["foo"]),
+      /value\[1\] is none of string, null/);
+  });
+
+  it("should handle intersections with overlapping property names", () => {
+    const { SameKeyIntersection } = createCheckers(intersectionTI);
+    SameKeyIntersection.check({
+      x: {
+        foo: 'foo',
+        bar: 0
+      }
+    })
+    SameKeyIntersection.check({
+      x: {
+        foo: 'foo',
+        bar: 0,
+        optional: 4,
+      }
+    })
+
+    assert.throws(() => 
+        SameKeyIntersection.check({
+          x: {
+            foo: 'foo',
+          }
+        }), /bar is missing/);
+
+    assert.throws(() => 
+        SameKeyIntersection.check({
+          x: {
+            bar: 1,
+          }
+        }), /foo is missing/);
+
+    assert.throws(() => 
+        SameKeyIntersection.check({
+          x: {
+            foo: 1,
+            bar: 0
+          }
+        }), /foo is not a string/);
+  });
+
+  it("should handle mixed union and intersection literals", () => {
+    const { MixedLiteral } = createCheckers(intersectionTI);
+    MixedLiteral.check(2)
+    assert.throws(() => MixedLiteral.check(1));
+    assert.throws(() => MixedLiteral.check(3));
   });
 
   it("should fail early when suite is missing types", () => {
