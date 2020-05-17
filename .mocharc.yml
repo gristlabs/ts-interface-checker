@@ -1,0 +1,7 @@
+extension:
+  - 'js'
+  - 'ts'
+require: 'ts-node/register'
+watch-files:
+  - 'lib/**/*.{js,ts}'
+  - 'test/**/*.{js,ts}'
