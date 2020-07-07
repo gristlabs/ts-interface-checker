@@ -5,6 +5,8 @@
 export class VError extends Error {
   constructor(public path: string, message: string) {
     super(message);
+    // See https://github.com/Microsoft/TypeScript/wiki/Breaking-Changes#extending-built-ins-like-error-array-and-map-may-no-longer-work for info about this workaround.
+    Object.setPrototypeOf(this, VError.prototype);
   }
 }
 
