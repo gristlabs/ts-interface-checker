@@ -1,5 +1,5 @@
 import {assert} from "chai";
-import {createCheckers} from "../lib/index";
+import {createCheckers, VError} from "../lib/index";
 import * as t from "../lib/types";
 import greetTI from "./fixtures/greet-ti";
 import sample from "./fixtures/sample-ti";
@@ -57,6 +57,7 @@ describe("ts-interface-checker", () => {
       "value.size is missing");
     assert.throws(() => ICacheItem.check({value: {}, tag: "baz"}),
       "value.key is missing");
+    assert.throws(() => ICacheItem.check({value: {}, tag: "baz"}), VError);
   });
 
   it("should support unions", () => {

@@ -11,6 +11,8 @@ export {
   BasicType, ITypeSuite,
 } from "./types";
 
+export { VError, IErrorDetail } from './util';
+
 export interface ICheckerSuite {
   [name: string]: Checker;
 }
