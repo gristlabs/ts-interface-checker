@@ -77,6 +77,14 @@ export class Checker {
   }
 
   /**
+   * Generic type guard function. Causes TypeScript to narrow the type of the value to T if it
+   * passes test().
+   */
+  public typeGuard<T>(value: any): value is T {
+    return this.test(value);
+  }
+
+  /**
    * Returns an error object describing the errors if the given value does not satisfy this
    * Checker's type, or null if it does.
    */
@@ -97,6 +105,14 @@ export class Checker {
    */
   public strictTest(value: any): boolean {
     return this.checkerStrict(value, new NoopContext());
+  }
+
+  /**
+   * Generic type guard function. Causes TypeScript to narrow the type of the value to T if it
+   * passes strictTest().
+   */
+  public strictTypeGuard<T>(value: any): value is T {
+    return this.strictTest(value);
   }
 
   /**

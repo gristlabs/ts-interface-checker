@@ -10,6 +10,13 @@ import intersectionTI from "./fixtures/intersection-ti";
 
 function noop() { /* noop */ }
 
+interface ICacheItemInterface {
+  key: string,
+  value: any,
+  size: number,
+  tag?: string
+}
+
 describe("ts-interface-checker", () => {
   it("should validate data", () => {
     const {ICacheItem} = createCheckers({ICacheItem: sample.ICacheItem});
@@ -47,6 +54,24 @@ describe("ts-interface-checker", () => {
     assert.isTrue(ICacheItem.strictTest({key: "foo", value: {}, size: 17, tag: "baz"}));
     assert.isFalse(ICacheItem.strictTest({key: "foo", value: {}, size: "text", tag: "baz"})),
     assert.isFalse(ICacheItem.strictTest({key: "foo", value: {}, size: 17, tag: "baz", extra: "baz"}));
+    assert.isTrue(ICacheItem.typeGuard<ICacheItemInterface>({key: "foo", value: {}, size: 17, tag: "baz"}));
+    assert.isFalse(ICacheItem.typeGuard<ICacheItemInterface>({key: "foo", value: {}, size: "text", tag: "baz"}));
+    const unk: unknown = {key: "foo", value: {}, size: 17, tag: "baz"};
+    if (ICacheItem.typeGuard<ICacheItemInterface>(unk)) {
+      assert.equal(unk.key, "foo");
+      assert.deepEqual(unk.value, {});
+      assert.equal(unk.size, 17);
+      assert.equal(unk.tag, "baz");
+    }
+    assert.isTrue(ICacheItem.strictTypeGuard<ICacheItemInterface>({key: "foo", value: {}, size: 17, tag: "baz"}));
+    assert.isFalse(ICacheItem.strictTypeGuard<ICacheItemInterface>({key: "foo", value: {}, size: "text", tag: "baz"}));
+    assert.isFalse(ICacheItem.strictTypeGuard<ICacheItemInterface>({key: "foo", value: {}, size: 17, tag: "baz", extra: "baz"}));
+    if (ICacheItem.strictTypeGuard<ICacheItemInterface>(unk)) {
+      assert.equal(unk.key, "foo");
+      assert.deepEqual(unk.value, {});
+      assert.equal(unk.size, 17);
+      assert.equal(unk.tag, "baz");
+    }
   });
 
   it("should produce helpful errors", () => {
