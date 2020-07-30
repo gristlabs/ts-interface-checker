@@ -108,6 +108,14 @@ export class Checker {
   }
 
   /**
+   * Generic type guard function. Causes TypeScript to narrow the type of the value to T if it
+   * passes strictTest().
+   */
+  public strictTypeGuard<T>(value: any): value is T {
+    return this.strictTest(value);
+  }
+
+  /**
    * Returns an error object describing the errors if the given value does not satisfy this
    * Checker's type strictly, or null if it does.
    */
