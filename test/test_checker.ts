@@ -1,5 +1,5 @@
 import {assert} from "chai";
-import {createCheckers, VError} from "../lib/index";
+import {createCheckers, CheckerT, VError} from "../lib/index";
 import * as t from "../lib/types";
 import greetTI from "./fixtures/greet-ti";
 import sample from "./fixtures/sample-ti";
@@ -9,6 +9,13 @@ import enumUnionTI from "./fixtures/enum-union-ti";
 import intersectionTI from "./fixtures/intersection-ti";
 
 function noop() { /* noop */ }
+
+interface ICacheItemInterface {
+  key: string,
+  value: any,
+  size: number,
+  tag?: string
+}
 
 describe("ts-interface-checker", () => {
   it("should validate data", () => {
@@ -41,12 +48,25 @@ describe("ts-interface-checker", () => {
   });
 
   it("should support quick tests", () => {
-    const {ICacheItem} = createCheckers({ICacheItem: sample.ICacheItem});
+    const {ICacheItem} = createCheckers({ICacheItem: sample.ICacheItem}) as { ICacheItem: CheckerT<ICacheItemInterface> };
+    const unk: unknown = {key: "foo", value: {}, size: 17, tag: "baz"};
     assert.isTrue(ICacheItem.test({key: "foo", value: {}, size: 17, tag: "baz"}));
-    assert.isFalse(ICacheItem.test({key: "foo", value: {}, size: "text", tag: "baz"})),
+    assert.isFalse(ICacheItem.test({key: "foo", value: {}, size: "text", tag: "baz"}));
+    if (ICacheItem.test(unk)) {
+      assert.equal(unk.key, "foo");
+      assert.deepEqual(unk.value, {});
+      assert.equal(unk.size, 17);
+      assert.equal(unk.tag, "baz");
+    }
     assert.isTrue(ICacheItem.strictTest({key: "foo", value: {}, size: 17, tag: "baz"}));
     assert.isFalse(ICacheItem.strictTest({key: "foo", value: {}, size: "text", tag: "baz"})),
     assert.isFalse(ICacheItem.strictTest({key: "foo", value: {}, size: 17, tag: "baz", extra: "baz"}));
+    if (ICacheItem.strictTest(unk)) {
+      assert.equal(unk.key, "foo");
+      assert.deepEqual(unk.value, {});
+      assert.equal(unk.size, 17);
+      assert.equal(unk.tag, "baz");
+    }
   });
 
   it("should produce helpful errors", () => {
