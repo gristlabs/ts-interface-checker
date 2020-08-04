@@ -172,7 +172,7 @@ export class TIntersection extends TType {
   }
 
   public getChecker(suite: ITypeSuite, strict: boolean): CheckerFunc {
-    const allowedProps = new Set();
+    const allowedProps = new Set<string>();
     const itemCheckers = this.ttypes.map((t) => t.getChecker(suite, strict, allowedProps));
     return (value: any, ctx: IContext) => {
       const ok = itemCheckers.every(checker => checker(value, ctx))
