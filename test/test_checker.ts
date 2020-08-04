@@ -1,5 +1,5 @@
 import {assert} from "chai";
-import {createCheckers, VError} from "../lib/index";
+import {createCheckers, CheckerT, VError} from "../lib/index";
 import * as t from "../lib/types";
 import greetTI from "./fixtures/greet-ti";
 import sample from "./fixtures/sample-ti";
@@ -48,25 +48,20 @@ describe("ts-interface-checker", () => {
   });
 
   it("should support quick tests", () => {
-    const {ICacheItem} = createCheckers({ICacheItem: sample.ICacheItem});
-    assert.isTrue(ICacheItem.test({key: "foo", value: {}, size: 17, tag: "baz"}));
-    assert.isFalse(ICacheItem.test({key: "foo", value: {}, size: "text", tag: "baz"})),
-    assert.isTrue(ICacheItem.strictTest({key: "foo", value: {}, size: 17, tag: "baz"}));
-    assert.isFalse(ICacheItem.strictTest({key: "foo", value: {}, size: "text", tag: "baz"})),
-    assert.isFalse(ICacheItem.strictTest({key: "foo", value: {}, size: 17, tag: "baz", extra: "baz"}));
-    assert.isTrue(ICacheItem.typeGuard<ICacheItemInterface>({key: "foo", value: {}, size: 17, tag: "baz"}));
-    assert.isFalse(ICacheItem.typeGuard<ICacheItemInterface>({key: "foo", value: {}, size: "text", tag: "baz"}));
+    const {ICacheItem} = createCheckers({ICacheItem: sample.ICacheItem}) as { ICacheItem: CheckerT<ICacheItemInterface> };
     const unk: unknown = {key: "foo", value: {}, size: 17, tag: "baz"};
-    if (ICacheItem.typeGuard<ICacheItemInterface>(unk)) {
+    assert.isTrue(ICacheItem.test({key: "foo", value: {}, size: 17, tag: "baz"}));
+    assert.isFalse(ICacheItem.test({key: "foo", value: {}, size: "text", tag: "baz"}));
+    if (ICacheItem.test(unk)) {
       assert.equal(unk.key, "foo");
       assert.deepEqual(unk.value, {});
       assert.equal(unk.size, 17);
       assert.equal(unk.tag, "baz");
     }
-    assert.isTrue(ICacheItem.strictTypeGuard<ICacheItemInterface>({key: "foo", value: {}, size: 17, tag: "baz"}));
-    assert.isFalse(ICacheItem.strictTypeGuard<ICacheItemInterface>({key: "foo", value: {}, size: "text", tag: "baz"}));
-    assert.isFalse(ICacheItem.strictTypeGuard<ICacheItemInterface>({key: "foo", value: {}, size: 17, tag: "baz", extra: "baz"}));
-    if (ICacheItem.strictTypeGuard<ICacheItemInterface>(unk)) {
+    assert.isTrue(ICacheItem.strictTest({key: "foo", value: {}, size: 17, tag: "baz"}));
+    assert.isFalse(ICacheItem.strictTest({key: "foo", value: {}, size: "text", tag: "baz"})),
+    assert.isFalse(ICacheItem.strictTest({key: "foo", value: {}, size: 17, tag: "baz", extra: "baz"}));
+    if (ICacheItem.strictTest(unk)) {
       assert.equal(unk.key, "foo");
       assert.deepEqual(unk.value, {});
       assert.equal(unk.size, 17);

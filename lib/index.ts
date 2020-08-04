@@ -77,14 +77,6 @@ export class Checker {
   }
 
   /**
-   * Generic type guard function. Causes TypeScript to narrow the type of the value to T if it
-   * passes test().
-   */
-  public typeGuard<T>(value: any): value is T {
-    return this.test(value);
-  }
-
-  /**
    * Returns an error object describing the errors if the given value does not satisfy this
    * Checker's type, or null if it does.
    */
@@ -105,14 +97,6 @@ export class Checker {
    */
   public strictTest(value: any): boolean {
     return this.checkerStrict(value, new NoopContext());
-  }
-
-  /**
-   * Generic type guard function. Causes TypeScript to narrow the type of the value to T if it
-   * passes strictTest().
-   */
-  public strictTypeGuard<T>(value: any): value is T {
-    return this.strictTest(value);
   }
 
   /**
@@ -206,4 +190,28 @@ export class Checker {
     if (!(ttype instanceof TFunc)) { throw new Error(`Property ${methodName} is not a method`); }
     return ttype;
   }
+}
+
+/**
+ * Typed checker interface. Adds type guard functionality to a normal `Checker`.
+ * 
+ * To use, cast a `Checker` to a `CheckerT<>` using the appropriate type.
+ * 
+ * eg.
+ *   import { MyInterface } from './my-interface';
+ *   import MyInterfaceTi from './my-interface-ti';
+ * 
+ *   const checkers = createCheckers(MyInterfaceTi) as {
+ *     MyInterface: CheckerT<MyInterface>
+ *   };
+ * 
+ * TODO:
+ * - Enable `check()` and `strictCheck()` type assertion definitions once the functionality
+ *   is correctly working in TypeScript. (https://github.com/microsoft/TypeScript/issues/36931)
+ */
+export interface CheckerT<T> extends Checker {
+  //check(value: any): asserts value is T;
+  test(value: any): value is T;
+  //strictCheck(value: any): asserts value is T;
+  strictTest(value: any): value is T;
 }

@@ -132,3 +132,54 @@ Following on the example above:
 Square.strictCheck({size: 1, color: [255,255,255], bg: "blue"});    // Fails with value.bg is extraneous
 Square.strictCheck({size: 1, color: [255,255,255,0.5]});            // Fails with ...value.color[3] is extraneous
 ```
+
+## Type guards
+
+Standard `Checker` objects do the type checking logic, but are unable to make the TypeScript
+compiler aware that an object of `unknown` type implements a certain interface.
+
+Basic code:
+```typescript
+const unk: unknown = {size: 1, color: "green"};
+// Type is unknown, so TypeScript will not let you access the members.
+console.log(unk.size); // Error: "Object is of type 'unknown'"
+```
+
+With a `Checker` available:
+```typescript
+import fooTI from "./foo-ti";
+import {createCheckers} from "ts-interface-checker";
+
+const {Square} = createCheckers(fooTI);
+
+const unk: unknown = {size: 1, color: "green"};
+
+if (Square.test(unk)) {
+  // unk does implement Square, but TypeScript is not aware of it.
+  console.log(unk.size); // Error: "Object is of type 'unknown'"
+}
+```
+
+To enable type guard functionality on the existing `test`, and `strictTest` functions, `Checker`
+objects should be cast to `CheckerT<>` using the appropriate type.
+
+Using `CheckerT<>`:
+```typescript
+import {Square} from "./foo";
+import fooTI from "./foo-ti";
+import {createCheckers, CheckerT} from "ts-interface-checker";
+
+const {Square} = createCheckers(fooTI) as {Square: CheckerT<Square>};
+
+const unk: unknown = {size: 1, color: "green"};
+
+if (Square.test(unk)) {
+  // TypeScript is now aware that unk implements Square, and allows member access.
+  console.log(unk.size);
+}
+```
+
+## Type assertions
+
+`CheckerT<>` will eventually support type assertions using the `check` and `strictCheck` functions,
+however, this feature is not yet fully working in TypeScript.
