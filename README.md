@@ -30,26 +30,17 @@ interface Square {
 }
 ```
 
-The first step is to generate some code for runtime checks:
-```bash
-`npm bin`/ts-interface-builder foo.ts
-```
+The first step is to obtain a [type suite](#type-suites) (runtime type definitions) for the TypeScript file.
 
-It produces a file like this:
+`ts-interface-builder` offers two ways to do this:
+1. use the [CLI](https://github.com/gristlabs/ts-interface-builder#cli)
+to generate a module (.ts or .js file) that exports the type suite
+2. use the [babel macro](https://github.com/gristlabs/ts-interface-builder#babel-macro)
+to generate the type suite as part of your babel build step
+
+Once you have a type suite for `foo.ts` (let's call it `fooTI`),
+you can check if a value satisfies the `Square` interface like so:
 ```typescript
-// foo-ti.js
-import * as t from "ts-interface-checker";
-
-export const Square = t.iface([], {
-  "size": "number",
-  "color": t.opt("string"),
-});
-...
-```
-
-Now at runtime, to check if a value satisfies the Square interface:
-```typescript
-import fooTI from "./foo-ti";
 import {createCheckers} from "ts-interface-checker";
 
 const {Square} = createCheckers(fooTI);
