@@ -467,6 +467,13 @@ describe("ts-interface-checker", () => {
     assert.throws(() => Type.check({b: 17}), /value.a is missing/);
     assert.throws(() => Type.check({a: 17, b: 17}), /value.a is not a string/);
     assert.throws(() => Type.check({a: "foo"}), /value.b is missing/);
+
+    // Try some strict checks too.
+    Type.strictCheck({a: "foo", b: 17});
+    assert.throws(() => Type.strictCheck({a: "foo", b: 17, c: "foo"}), /value.c is extraneous/);
+    assert.throws(() => Type.strictCheck({b: 17}), /value.a is missing/);
+    assert.throws(() => Type.strictCheck({a: 17, b: 17}), /value.a is not a string/);
+    assert.throws(() => Type.strictCheck({a: "foo"}), /value.b is missing/);
   });
 
   it("should support index signatures", () => {
