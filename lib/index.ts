@@ -8,6 +8,7 @@ export {
   TArray, TEnumType, TEnumLiteral, TFunc, TIface, TLiteral, TName, TOptional, TParam, TParamList,
   TProp, TTuple, TType, TUnion, TIntersection,
   array, enumlit, enumtype, func, iface, lit, name, opt, param, tuple, union, intersection,
+  indexKey,
   BasicType, ITypeSuite,
 } from "./types";
 
