@@ -23,7 +23,9 @@ export const SquareConfig = t.iface([], {
 });
 
 export const IndexSignatures = t.iface([], {
-  "data": t.iface([], {[t.indexKey]: t.array("number")}),
+  "data": t.iface([], {
+    [t.indexKey]: t.array("number"),
+  }),
 });
 
 const exportedTypeSuite: t.ITypeSuite = {

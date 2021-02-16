@@ -7,7 +7,7 @@ import shapes from "./fixtures/shapes-ti";
 import * as enumUnion from "./fixtures/enum-union";
 import enumUnionTI from "./fixtures/enum-union-ti";
 import intersectionTI from "./fixtures/intersection-ti";
-import indexTypesTI from "./fixtures/index-types-ti";
+import indexSignaturesTI from "./fixtures/index-signatures-ti";
 
 function noop() { /* noop */ }
 
@@ -470,7 +470,7 @@ describe("ts-interface-checker", () => {
   });
 
   it("should support index signatures", () => {
-    const {SquareConfig, IndexSignatures} = createCheckers(indexTypesTI);
+    const {SquareConfig, IndexSignatures} = createCheckers(indexSignaturesTI);
     // SquareConfig is a fairly relaxed type, with index signature of type 'any'.
     SquareConfig.check({color: "blue", width: 1});
     SquareConfig.check({color: "blue", width: 1, foo: new Date(2020, 2, 15)});
