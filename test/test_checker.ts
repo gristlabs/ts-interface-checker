@@ -8,6 +8,7 @@ import * as enumUnion from "./fixtures/enum-union";
 import enumUnionTI from "./fixtures/enum-union-ti";
 import intersectionTI from "./fixtures/intersection-ti";
 import indexSignaturesTI from "./fixtures/index-signatures-ti";
+import recursiveTI from "./fixtures/recursive-ti";
 
 function noop() { /* noop */ }
 
@@ -502,6 +503,25 @@ describe("ts-interface-checker", () => {
     assert.throws(() => IndexSignatures.check({data: {"foo": [1, 2, "3"]}}), /data.foo\[2\] is not a number/);
     assert.throws(() => IndexSignatures.check({data: {"foo": [1, 2], "bar": 5}}), /data.bar is not an array/);
     assert.throws(() => IndexSignatures.check({}), /data is missing/);
+  });
+
+  it('should support recursive interfaces', () => {
+    const {FormConfig} = createCheckers(recursiveTI);
+    FormConfig.check({});
+    const form = {children: []};
+    FormConfig.check(form);
+    FormConfig.check({children: [form, form]});
+
+    (form as any).children = "";
+    assert.throws(() => FormConfig.check(form), /value.children is not an array/);
+
+    // A similar test using an intersection (which affects allowedProps).
+    const Foo = t.iface([], {"foo": "string"});
+    const Bar = t.iface([], {"nested": t.opt(t.intersection("Foo", "Bar"))});
+    const Baz = t.name("Bar");
+    const checkers = createCheckers({Foo, Bar, Baz});
+    checkers.Baz.check({nested: {foo: 'foo', nested: {foo: 'foo2'}}});
+    checkers.Baz.strictCheck({nested: {foo: 'foo', nested: {foo: 'foo2'}}});
   });
 
   it("should check method calls as in README docs", () => {
