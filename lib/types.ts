@@ -265,8 +265,10 @@ export class TIface extends TType {
     this.propSet = new Set(props.map((p) => p.name));
   }
 
-  public getChecker(suite: ITypeSuite, strict: boolean, allowedProps?: Set<string>): CheckerFunc {
-    const baseCheckers = this.bases.map((b) => getNamedType(suite, b).getChecker(suite, strict));
+  public getChecker(suite: ITypeSuite, strict: boolean, allowedProps: Set<string> = new Set()): CheckerFunc {
+    this.propSet.forEach((prop) => allowedProps.add(prop));
+
+    const baseCheckers = this.bases.map((b) => getNamedType(suite, b).getChecker(suite, strict, allowedProps));
     const propCheckers = this.props.map((prop) => prop.ttype.getChecker(suite, strict));
     const indexTypeChecker = this.indexType?.getChecker(suite, strict);
     const testCtx = new NoopContext();
@@ -302,17 +304,11 @@ export class TIface extends TType {
 
     if (!strict || indexTypeChecker) { return checker; }
 
-    let propSet = this.propSet;
-    if (allowedProps) {
-      this.propSet.forEach((prop) => allowedProps.add(prop));
-      propSet = allowedProps;
-    }
-
     // In strict mode, check also for unknown enumerable properties.
     return (value: any, ctx: IContext) => {
       if (!checker(value, ctx)) { return false; }
       for (const prop in value) {
-        if (!propSet.has(prop)) {
+        if (!allowedProps.has(prop)) {
           return ctx.fail(prop, "is extraneous", 2);
         }
       }
