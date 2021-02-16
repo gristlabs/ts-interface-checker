@@ -228,7 +228,9 @@ export class TEnumLiteral extends TType {
 }
 
 function makeIfaceProps(props: {[name: string]: TOptional|TypeSpec}): TProp[] {
-  return Object.keys(props).map((name: string) => makeIfaceProp(name, props[name]));
+  return Object.keys(props)
+    .filter((name: string|typeof indexKey) => (name !== indexKey))
+    .map((name: string) => makeIfaceProp(name, props[name]));
 }
 
 function makeIfaceProp(name: string, prop: TOptional|TypeSpec): TProp {
@@ -238,22 +240,35 @@ function makeIfaceProp(name: string, prop: TOptional|TypeSpec): TProp {
 }
 
 /**
+ * indexKey is a special key that indicates an index signature when used as a key in an interface.
+ * E.g. {[key: string]: number} becomes t.iface([], {[t.indexKey]: "number"}).
+ *
+ * We don't distinguish between string- and number-type index signatures, and don't support
+ * multiple index signatures.
+ */
+export const indexKey: unique symbol = Symbol();
+
+/**
  * Defines an interface. The first argument is an array of interfaces that it extends, and the
  * second is an array of properties.
  */
 export function iface(bases: string[], props: {[name: string]: TOptional|TypeSpec}): TIface {
-  return new TIface(bases, makeIfaceProps(props));
+  return new TIface(bases, makeIfaceProps(props), props[indexKey as any]);
 }
 export class TIface extends TType {
+  public indexType?: TType;
   private propSet: Set<string>;
-  constructor(public bases: string[], public props: TProp[]) {
+
+  constructor(public bases: string[], public props: TProp[], indexType?: TOptional|TypeSpec) {
     super();
+    this.indexType = indexType ? parseSpec(indexType) : undefined;
     this.propSet = new Set(props.map((p) => p.name));
   }
 
   public getChecker(suite: ITypeSuite, strict: boolean, allowedProps?: Set<string>): CheckerFunc {
     const baseCheckers = this.bases.map((b) => getNamedType(suite, b).getChecker(suite, strict));
     const propCheckers = this.props.map((prop) => prop.ttype.getChecker(suite, strict));
+    const indexTypeChecker = this.indexType?.getChecker(suite, strict);
     const testCtx = new NoopContext();
 
     // Consider a prop required if it's not optional AND does not allow for undefined as a value.
@@ -275,10 +290,17 @@ export class TIface extends TType {
           if (!ok) { return ctx.fail(name, null, 1); }
         }
       }
+      if (indexTypeChecker) {
+        for (const prop in value) {
+          if (!indexTypeChecker(value[prop], ctx)) {
+            return ctx.fail(prop, null, 1);
+          }
+        }
+      }
       return true;
     };
 
-    if (!strict) { return checker; }
+    if (!strict || indexTypeChecker) { return checker; }
 
     let propSet = this.propSet;
     if (allowedProps) {

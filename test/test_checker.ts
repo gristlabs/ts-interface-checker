@@ -7,6 +7,7 @@ import shapes from "./fixtures/shapes-ti";
 import * as enumUnion from "./fixtures/enum-union";
 import enumUnionTI from "./fixtures/enum-union-ti";
 import intersectionTI from "./fixtures/intersection-ti";
+import indexSignaturesTI from "./fixtures/index-signatures-ti";
 
 function noop() { /* noop */ }
 
@@ -466,6 +467,34 @@ describe("ts-interface-checker", () => {
     assert.throws(() => Type.check({b: 17}), /value.a is missing/);
     assert.throws(() => Type.check({a: 17, b: 17}), /value.a is not a string/);
     assert.throws(() => Type.check({a: "foo"}), /value.b is missing/);
+  });
+
+  it("should support index signatures", () => {
+    const {SquareConfig, IndexSignatures} = createCheckers(indexSignaturesTI);
+    // SquareConfig is a fairly relaxed type, with index signature of type 'any'.
+    SquareConfig.check({color: "blue", width: 1});
+    SquareConfig.check({color: "blue", width: 1, foo: new Date(2020, 2, 15)});
+    SquareConfig.check({color: "blue", foo: "blue", bar: 1});
+    assert.throws(() => SquareConfig.check({}), /color is missing/);
+    assert.throws(() => SquareConfig.check({foo: "blue", bar: 1}), /color is missing/);
+    assert.throws(() => SquareConfig.check({color: 17}), /color is not a string/);
+
+    // Presence of index signature disables strictness (no properties are extraneous).
+    SquareConfig.strictCheck({color: "blue", width: 1});
+    SquareConfig.strictCheck({color: "blue", width: 1, foo: new Date(2020, 2, 15)});
+    SquareConfig.strictCheck({color: "blue", foo: "blue", bar: 1});
+    assert.throws(() => SquareConfig.strictCheck({}), /color is missing/);
+    assert.throws(() => SquareConfig.strictCheck({foo: "blue", bar: 1}), /color is missing/);
+    assert.throws(() => SquareConfig.strictCheck({color: 17}), /color is not a string/);
+
+    // Here's a stricter index-signature type (data: {[index: number]: number[]})
+    // Note that the declared type of the index key doesn't matter (in JS, object keys are always
+    // seen as strings anyway).
+    IndexSignatures.check({data: {5: [1, 2, 3], "foo": []}});
+    IndexSignatures.check({data: {}});
+    assert.throws(() => IndexSignatures.check({data: {"foo": [1, 2, "3"]}}), /data.foo\[2\] is not a number/);
+    assert.throws(() => IndexSignatures.check({data: {"foo": [1, 2], "bar": 5}}), /data.bar is not an array/);
+    assert.throws(() => IndexSignatures.check({}), /data is missing/);
   });
 
   it("should check method calls as in README docs", () => {
