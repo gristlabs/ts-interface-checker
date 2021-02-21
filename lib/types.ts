@@ -9,7 +9,8 @@ export type CheckerFunc = (value: any, ctx: IContext) => boolean;
 
 /** Node that represents a type. */
 export abstract class TType {
-  // allowedProps is used for intersections, since strict checks require member types fo share properties.
+  // allowedProps is used for intersections and inheritance, since strict checks require member
+  // types to share properties.
   public abstract getChecker(suite: ITypeSuite, strict: boolean, allowedProps?: Set<string>): CheckerFunc;
 }
 
@@ -43,10 +44,34 @@ function getNamedType(suite: ITypeSuite, name: string): TType {
  */
 export function name(value: string): TName { return new TName(value); }
 export class TName extends TType {
+  private _checkerBeingBuilt: CheckerFunc|undefined;
   private _failMsg: string;
+
   constructor(public name: string) { super(); this._failMsg = `is not a ${name}`; }
 
   public getChecker(suite: ITypeSuite, strict: boolean, allowedProps?: Set<string>): CheckerFunc {
+    // Using names, we can reference a type recursively in its own definition. To avoid an
+    // infinite recursion in getChecker() calls, we cache and reuse the checker that's being built
+    // when it references its own TName node. Note that it's important to reuse the result only
+    // when getChecker() is called with the same arguments, but that's already guaranteed because
+    // we are caching only for the current call and only for the same TName object (not another
+    // instance of name() call for the same name).
+    //
+    // Note also that this is about handling recursive types; it does NOT help validating data
+    // with circular references.
+    let checkerFunc = this._checkerBeingBuilt;
+    if (!checkerFunc) {
+      this._checkerBeingBuilt = (value, ctx) => checkerFunc!(value, ctx);
+      try {
+        checkerFunc = this._getChecker(suite, strict, allowedProps);
+      } finally {
+        this._checkerBeingBuilt = undefined;
+      }
+    }
+    return checkerFunc;
+  }
+
+  private _getChecker(suite: ITypeSuite, strict: boolean, allowedProps?: Set<string>): CheckerFunc {
     const ttype = getNamedType(suite, this.name);
     const checker = ttype.getChecker(suite, strict, allowedProps);
     if (ttype instanceof BasicType || ttype instanceof TName) { return checker; }
