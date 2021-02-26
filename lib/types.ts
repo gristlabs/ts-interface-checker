@@ -171,8 +171,8 @@ export class TUnion extends TType {
     }
   }
 
-  public getChecker(suite: ITypeSuite, strict: boolean): CheckerFunc {
-    const itemCheckers = this.ttypes.map((t) => t.getChecker(suite, strict));
+  public getChecker(suite: ITypeSuite, strict: boolean, allowedProps?: Set<string>): CheckerFunc {
+    const itemCheckers = this.ttypes.map((t) => t.getChecker(suite, strict, allowedProps));
     return (value: any, ctx: IContext) => {
       const ur = ctx.unionResolver();
       for (let i = 0; i < itemCheckers.length; i++) {
@@ -196,8 +196,7 @@ export class TIntersection extends TType {
     super();
   }
 
-  public getChecker(suite: ITypeSuite, strict: boolean): CheckerFunc {
-    const allowedProps = new Set<string>();
+  public getChecker(suite: ITypeSuite, strict: boolean, allowedProps: Set<string> = new Set()): CheckerFunc {
     const itemCheckers = this.ttypes.map((t) => t.getChecker(suite, strict, allowedProps));
     return (value: any, ctx: IContext) => {
       const ok = itemCheckers.every(checker => checker(value, ctx))

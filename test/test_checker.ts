@@ -347,10 +347,27 @@ describe("ts-interface-checker", () => {
   });
 
   it("should handle mixed union and intersection literals", () => {
+    // Represents (1|2) & (2|3).
     const { MixedLiteral } = createCheckers(intersectionTI);
     MixedLiteral.check(2)
     assert.throws(() => MixedLiteral.check(1));
     assert.throws(() => MixedLiteral.check(3));
+  });
+
+  it("should not consider properties extraneous in case of an intersection", () => {
+    type AorBandC = ({a: string} | {b: string}) & {c: string};
+    const AorBandC = t.intersection(
+      t.union(t.iface([], {a: "string"}), t.iface([], {b: "string"})),
+      t.iface([], {c: "string"})
+    );
+    const checkers = createCheckers({AorBandC}) as {AorBandC: CheckerT<AorBandC>};
+    checkers.AorBandC.strictCheck({a: "A", c: "C"});
+    checkers.AorBandC.strictCheck({b: "B", c: "C"});
+    checkers.AorBandC.strictCheck({a: "A", b: "B", c: "C"});
+    assert.throws(() => checkers.AorBandC.strictCheck({b: "B"}), /value.c is missing/);
+    assert.throws(() => checkers.AorBandC.strictCheck({c: "C"}));
+    assert.throws(() => checkers.AorBandC.strictCheck({a: "A", b: "B", c: "C", d: "D"}),
+      /value.d is extraneous/);
   });
 
   it("should fail early when suite is missing types", () => {
