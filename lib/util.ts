@@ -18,8 +18,10 @@ export interface IContext {
   fail(relPath: string|number|null, message: string|null, score: number): false;
   unionResolver(): IUnionResolver;
   resolveUnion(ur: IUnionResolver): void;
+
   fork(): IContext;
-  more(): boolean;
+  completeFork(): boolean;
+  failed(): boolean;
 }
 
 /**
@@ -44,20 +46,24 @@ export interface IErrorDetail {
  * normally pass validation.
  */
 export class NoopContext implements IContext, IUnionResolver {
-  private _more: boolean = true;
+  private _failed: boolean = false;
 
   public fail(relPath: string|number|null, message: string|null, score: number): false {
-    this._more = false;
+    this._failed = true;
     return false;
   }
 
   public fork(): IContext {
-    this._more = true;
+    this._failed = false;
     return this;
   }
 
-  public more(): boolean {
-    return this._more;
+  public completeFork(): boolean {
+    return !this._failed;
+  }
+
+  public failed(): boolean {
+    return this._failed;
   }
 
   public unionResolver(): IUnionResolver { return this; }
@@ -72,7 +78,9 @@ export class DetailContext implements IContext {
   // Stack of property names and associated messages for reporting helpful error messages.
   private _propNames: Array<string|number|null> = [];
   private _messages: Array<string|null> = [];
+
   private _forks: Array<DetailContext> = [];
+  private _maxForks = 3;
 
   // Score is used to choose the best union member whose DetailContext to use for reporting.
   // Higher score means better match (or rather less severe mismatch).
@@ -98,6 +106,7 @@ export class DetailContext implements IContext {
     if (best && best._score > 0) {
       this._propNames.push(...best._propNames);
       this._messages.push(...best._messages);
+      this._forks.push(...best._forks);
     }
   }
 
@@ -129,6 +138,14 @@ export class DetailContext implements IContext {
         details.push(detail);
       }
     }
+    if (this._forks.length) {
+      if (detail) {
+        detail.nested = this._forks.map(fork => fork.getErrorDetail(path));
+      }
+      // Just keep one fork to preserve the old flat error message for now
+      details.push(...this._forks[0].getErrorDetails(path));
+    }
+
     return details;
   }
 
@@ -138,15 +155,22 @@ export class DetailContext implements IContext {
     return ctx;
   }
 
-  public more(): boolean {
+  public completeFork(): boolean {
     const fork = this._forks[this._forks.length - 1];
-    if (fork._propNames.length) {
-      this._propNames.push(...fork._propNames);
-      this._messages.push(...fork._messages);
-      this._score += fork._score;
-      return false;
+    if (fork.failed()) {
+      // To preserve old behaviour, use the score of the first failure
+      // Might want to revise this
+      if (this._forks.length == 1) {
+        this._score = fork._score;
+      }
+    } else {
+      this._forks.pop();
     }
-    return true;
+    return this._forks.length < this._maxForks;
+  }
+
+  public failed(): boolean {
+    return this._propNames.length + this._forks.length > 0;
   }
 }
 

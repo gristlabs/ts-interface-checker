@@ -622,11 +622,11 @@ describe("ts-interface-checker", () => {
         {
           path: "value.spam.foo", message: "is not a Foo",
           nested: [
-            {
-              path: "value.spam.foo.x", message: "is missing",
-            }
+            {path: "value.spam.foo.x", message: "is missing"},
+            {path: "value.spam.foo.y", message: "is missing"},
           ],
-        }
+        },
+        {path: "value.spam.z", message: "is missing"},
       ],
     });
   });

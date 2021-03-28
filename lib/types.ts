@@ -305,7 +305,7 @@ export class TIface extends TType {
       if (typeof value !== "object" || value === null) { return ctx.fail(null, "is not an object", 0); }
       for (let i = 0; i < baseCheckers.length; i++) {
         baseCheckers[i](value, ctx.fork());
-        if (!ctx.more()) {
+        if (!ctx.completeFork()) {
           return false;
         }
       }
@@ -315,7 +315,7 @@ export class TIface extends TType {
         if (v === undefined) {
           if (isPropRequired[i]) {
             ctx.fork().fail(name, "is missing", 1);
-            if (!ctx.more()) {
+            if (!ctx.completeFork()) {
               return false;
             }
           }
@@ -323,7 +323,7 @@ export class TIface extends TType {
           const fork = ctx.fork();
           const ok = propCheckers[i](v, fork);
           if (!ok) { fork.fail(name, null, 1); }
-          if (!ctx.more()) {
+          if (!ctx.completeFork()) {
             return false;
           }
         }
@@ -334,7 +334,7 @@ export class TIface extends TType {
           if (!indexTypeChecker(value[prop], fork)) {
             fork.fail(prop, null, 1);
           }
-          if (!ctx.more()) {
+          if (!ctx.completeFork()) {
             return false;
           }
         }
@@ -343,13 +343,13 @@ export class TIface extends TType {
         for (const prop in value) {
           if (!allowedProps.has(prop)) {
             ctx.fork().fail(prop, "is extraneous", 2);
-            if (!ctx.more()) {
+            if (!ctx.completeFork()) {
               return false;
             }
           }
         }
       }
-      return true;
+      return !ctx.failed();
     };
   }
 }
