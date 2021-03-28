@@ -67,7 +67,10 @@ export class NoopContext implements IContext, IUnionResolver {
   }
 
   public unionResolver(): IUnionResolver { return this; }
-  public createContext(): IContext { return this; }
+  public createContext(): IContext {
+    this._failed = false;
+    return this;
+  }
   public resolveUnion(ur: IUnionResolver): void { /* noop */ }
 }
 
