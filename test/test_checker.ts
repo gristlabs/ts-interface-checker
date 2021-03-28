@@ -228,6 +228,7 @@ describe("ts-interface-checker", () => {
   it("should handle discriminated unions", () => {
     const {Shape} = createCheckers(shapes);
     Shape.check({kind: "square", size: 17});
+    Shape.strictCheck({kind: "square", size: 17});
     Shape.check({kind: "rectangle", width: 17, height: 4});
     Shape.check({kind: "circle", radius: 0.5});
 
@@ -564,6 +565,11 @@ describe("ts-interface-checker", () => {
       Type: t.union(t.iface([], {a: "Foo"}),
                     t.iface([], {a: "number"})),
     });
+    const {Bar} = createCheckers({
+      Bar: t.iface([], {spam: "Spam", other: "number"}),
+      Spam: t.iface([], {foo: "Foo", z: "number"}),
+      Foo: t.iface([], {x: "number", y: "number"}),
+    });
 
     assert.isNull(Shape.validate({kind: "square", size: 17}));
     assert.isNull(Shape.validate({kind: "rectangle", width: 17, height: 4}));
@@ -608,6 +614,20 @@ describe("ts-interface-checker", () => {
           path: "value.a.foo", message: "is not a number",
         }],
       }],
+    });
+
+    assert.deepEqual(Bar.validate({spam: {foo: {}}}), {
+      path: "value.spam", message: "is not a Spam",
+      nested: [
+        {
+          path: "value.spam.foo", message: "is not a Foo",
+          nested: [
+            {
+              path: "value.spam.foo.x", message: "is missing",
+            }
+          ],
+        }
+      ],
     });
   });
 });

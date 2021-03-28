@@ -18,6 +18,8 @@ export interface IContext {
   fail(relPath: string|number|null, message: string|null, score: number): false;
   unionResolver(): IUnionResolver;
   resolveUnion(ur: IUnionResolver): void;
+  fork(): IContext;
+  more(): boolean;
 }
 
 /**
@@ -42,9 +44,22 @@ export interface IErrorDetail {
  * normally pass validation.
  */
 export class NoopContext implements IContext, IUnionResolver {
+  private _more: boolean = true;
+
   public fail(relPath: string|number|null, message: string|null, score: number): false {
+    this._more = false;
     return false;
   }
+
+  public fork(): IContext {
+    this._more = true;
+    return this;
+  }
+
+  public more(): boolean {
+    return this._more;
+  }
+
   public unionResolver(): IUnionResolver { return this; }
   public createContext(): IContext { return this; }
   public resolveUnion(ur: IUnionResolver): void { /* noop */ }
@@ -55,8 +70,9 @@ export class NoopContext implements IContext, IUnionResolver {
  */
 export class DetailContext implements IContext {
   // Stack of property names and associated messages for reporting helpful error messages.
-  private _propNames: Array<string|number|null> = [""];
-  private _messages: Array<string|null> = [null];
+  private _propNames: Array<string|number|null> = [];
+  private _messages: Array<string|null> = [];
+  private _forks: Array<DetailContext> = [];
 
   // Score is used to choose the best union member whose DetailContext to use for reporting.
   // Higher score means better match (or rather less severe mismatch).
@@ -86,34 +102,51 @@ export class DetailContext implements IContext {
   }
 
   public getError(path: string): VError {
-    const msgParts: string[] = [];
-    for (let i = this._propNames.length - 1; i >= 0; i--) {
-      const p = this._propNames[i];
-      path += (typeof p === "number") ? `[${p}]` : (p ? `.${p}` : "");
-      const m = this._messages[i];
-      if (m) {
-        msgParts.push(`${path} ${m}`);
-      }
-    }
-    return new VError(path, msgParts.join("; "));
+    const fullMessage = this.getErrorDetails(path)
+        .map(d => `${d.path} ${d.message}`)
+        .join("; ");
+    return new VError(path, fullMessage);
   }
 
-  public getErrorDetail(path: string): IErrorDetail|null {
+  public getErrorDetail(path: string): IErrorDetail {
+    return this.getErrorDetails(path)[0]
+  }
+
+  private getErrorDetails(path: string): IErrorDetail[] {
+    let detail: IErrorDetail|null = null;
+    let nested: IErrorDetail|null = null;
     const details: IErrorDetail[] = [];
     for (let i = this._propNames.length - 1; i >= 0; i--) {
       const p = this._propNames[i];
       path += (typeof p === "number") ? `[${p}]` : (p ? `.${p}` : "");
       const message = this._messages[i];
       if (message) {
-        details.push({path, message});
+        nested = {path, message}
+        if (detail) {
+          detail.nested = [nested]
+        }
+        detail = nested
+        details.push(detail);
       }
     }
-    let detail: IErrorDetail|null = null;
-    for (let i = details.length - 1; i >= 0; i--) {
-      if (detail) { details[i].nested = [detail]; }
-      detail = details[i];
+    return details;
+  }
+
+  public fork(): IContext {
+    const ctx = new DetailContext();
+    this._forks.push(ctx);
+    return ctx;
+  }
+
+  public more(): boolean {
+    const fork = this._forks[this._forks.length - 1];
+    if (fork._propNames.length) {
+      this._propNames.push(...fork._propNames);
+      this._messages.push(...fork._messages);
+      this._score += fork._score;
+      return false;
     }
-    return detail;
+    return true;
   }
 }
 
