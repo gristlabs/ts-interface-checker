@@ -54,7 +54,6 @@ export class NoopContext implements IContext, IUnionResolver {
   }
 
   public fork(): IContext {
-    this._failed = false;
     return this;
   }
 
