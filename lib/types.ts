@@ -199,9 +199,10 @@ export class TIntersection extends TType {
   public getChecker(suite: ITypeSuite, strict: boolean, allowedProps: Set<string> = new Set()): CheckerFunc {
     const itemCheckers = this.ttypes.map((t) => t.getChecker(suite, strict, allowedProps));
     return (value: any, ctx: IContext) => {
-      const ok = itemCheckers.every(checker => checker(value, ctx))
-      if (ok) { return true; }
-      return ctx.fail(null, null, 0);
+      return itemCheckers.every(checker => {
+        checker(value, ctx.fork());
+        return ctx.completeFork();
+      });
     };
   }
 }
