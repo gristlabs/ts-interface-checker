@@ -629,5 +629,30 @@ describe("ts-interface-checker", () => {
         {path: "value.spam.z", message: "is missing"},
       ],
     });
+
+    const {C} = createCheckers({
+      A: t.iface([], {a: "number"}),
+      B: t.iface([], {b: "number"}),
+      AB: t.intersection("A", "B"),
+      C: t.iface([], {ab: "AB"}),
+    });
+
+    assert.deepEqual(C.validate({ab: {}}), {
+      "path": "value.ab", "message": "is not a AB",
+      "nested": [
+        {
+          "path": "value.ab", "message": "is not a A",
+          "nested": [
+            {"path": "value.ab.a", "message": "is missing"}
+          ],
+        },
+        {
+          "path": "value.ab", "message": "is not a B",
+          "nested": [
+            {"path": "value.ab.b", "message": "is missing"}
+          ],
+        }
+      ],
+    });
   });
 });

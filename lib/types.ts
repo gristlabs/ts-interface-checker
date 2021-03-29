@@ -202,7 +202,7 @@ export class TIntersection extends TType {
       return itemCheckers.every(checker => {
         checker(value, ctx.fork());
         return ctx.completeFork();
-      });
+      }) && !ctx.failed();
     };
   }
 }
