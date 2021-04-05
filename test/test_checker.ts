@@ -241,7 +241,11 @@ describe("ts-interface-checker", () => {
     assert.throws(() => Shape.check({kind: "square", width: 17, height: 4}),
       /value.size is missing/);
     assert.throws(() => Shape.check({kind: "rectangle", radius: 0.5}),
-      /^value is none of Square, Rectangle, Circle; value is not a Rectangle; value.width is missing$/);
+      dedent(`
+        value is none of Square, Rectangle, Circle; value is not a Rectangle
+            value.width is missing
+            value.height is missing
+    `));
     assert.throws(() => Shape.check({width: 17, height: 4}), /value.kind is missing/);
 
     // Missing or misspelled property.
@@ -571,13 +575,13 @@ describe("ts-interface-checker", () => {
       Foo: t.iface([], {x: "number", y: "number"}),
     });
 
-    assert.isNull(Shape.validate({kind: "square", size: 17}));
-    assert.isNull(Shape.validate({kind: "rectangle", width: 17, height: 4}));
-    assert.isNull(Shape.validate({kind: "circle", radius: 0.5}));
+    assert.isEmpty(Shape.validate({kind: "square", size: 17}));
+    assert.isEmpty(Shape.validate({kind: "rectangle", width: 17, height: 4}));
+    assert.isEmpty(Shape.validate({kind: "circle", radius: 0.5}));
 
     // Extraneous property.
-    assert.isNull(Shape.validate({kind: "square", size: 17, depth: 5}));
-    assert.deepEqual(Shape.strictValidate({kind: "square", size: 17, depth: 5}), {
+    assert.isEmpty(Shape.validate({kind: "square", size: 17, depth: 5}));
+    assert.deepEqual(Shape.strictValidate({kind: "square", size: 17, depth: 5}), [{
       path: "value", message: "is none of Square, Rectangle, Circle",
       nested: [{
         path: "value", message: "is not a Square",
@@ -585,10 +589,10 @@ describe("ts-interface-checker", () => {
           path: "value.depth", message: "is extraneous",
         }],
       }],
-    });
+    }]);
 
     // Mismatching or missing kind.
-    assert.deepEqual(Shape.validate({kind: "square", width: 17, height: 4}), {
+    assert.deepEqual(Shape.validate({kind: "square", width: 17, height: 4}), [{
       path: "value", message: "is none of Square, Rectangle, Circle",
       nested: [{
         path: "value", message: "is not a Square",
@@ -596,17 +600,17 @@ describe("ts-interface-checker", () => {
           path: "value.size", message: "is missing",
         }],
       }],
-    });
+    }]);
 
-    assert.isNull(Type.validate({a: 12}));
-    assert.isNull(Type.validate({a: {foo: 12}}));
-    assert.deepEqual(Type.validate({a: "x"}), {
+    assert.isEmpty(Type.validate({a: 12}));
+    assert.isEmpty(Type.validate({a: {foo: 12}}));
+    assert.deepEqual(Type.validate({a: "x"}), [{
       path: "value", message: "is none of 2 types",
       nested: [{
         path: "value.a", message: "is not a number",
       }],
-    });
-    assert.deepEqual(Type.validate({a: {foo: "x"}}), {
+    }]);
+    assert.deepEqual(Type.validate({a: {foo: "x"}}), [{
       path: "value", message: "is none of 2 types",
       nested: [{
         path: "value.a", message: "is not a Foo",
@@ -614,21 +618,27 @@ describe("ts-interface-checker", () => {
           path: "value.a.foo", message: "is not a number",
         }],
       }],
-    });
+    }]);
 
-    assert.deepEqual(Bar.validate({spam: {foo: {}}}), {
-      path: "value.spam", message: "is not a Spam",
-      nested: [
-        {
-          path: "value.spam.foo", message: "is not a Foo",
-          nested: [
-            {path: "value.spam.foo.x", message: "is missing"},
-            {path: "value.spam.foo.y", message: "is missing"},
-          ],
-        },
-        {path: "value.spam.z", message: "is missing"},
-      ],
-    });
+    assert.deepEqual(Bar.validate({spam: {foo: {}}}), [
+      {
+        path: "value.spam", message: "is not a Spam",
+        nested: [
+          {
+            path: "value.spam.foo", message: "is not a Foo",
+            nested: [
+              {path: "value.spam.foo.x", message: "is missing"},
+              {path: "value.spam.foo.y", message: "is missing"},
+            ],
+          },
+          {path: "value.spam.z", message: "is missing"},
+        ],
+      },
+      {
+        "message": "is missing",
+        "path": "value.other"
+      },
+    ]);
 
     const {C} = createCheckers({
       A: t.iface([], {a: "number"}),
@@ -637,7 +647,7 @@ describe("ts-interface-checker", () => {
       C: t.iface([], {ab: "AB"}),
     });
 
-    assert.deepEqual(C.validate({ab: {}}), {
+    assert.deepEqual(C.validate({ab: {}}), [{
       "path": "value.ab", "message": "is not a AB",
       "nested": [
         {
@@ -653,6 +663,23 @@ describe("ts-interface-checker", () => {
           ],
         }
       ],
-    });
+    }]);
   });
 });
+
+/**
+ * Removes common leading indentation from a multiline string
+ * Based on https://stackoverflow.com/a/25937397/2482744
+ */
+const dedent = (s: string) => {
+  let size = -1;
+
+  return s.replace(/\n(\s+)/g, (m, m1) => {
+
+    if (size < 0) {
+      size = m1.replace(/\t/g, "    ").length;
+    }
+
+    return "\n" + m1.slice(Math.min(m1.length, size));
+  }).trim();
+}

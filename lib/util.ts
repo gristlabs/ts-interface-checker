@@ -114,18 +114,14 @@ export class DetailContext implements IContext {
 
   public getError(path: string): VError {
     const fullMessage = this.getErrorDetails(path)
-        .map(d => `${d.path} ${d.message}`)
-        .join("; ");
+        .flatMap(errorLines)
+        .join("\n");
     return new VError(path, fullMessage);
   }
 
-  public getErrorDetail(path: string): IErrorDetail {
-    return this.getErrorDetails(path)[0]
-  }
-
-  private getErrorDetails(path: string): IErrorDetail[] {
+  public getErrorDetails(path: string): IErrorDetail[] {
     let detail: IErrorDetail|null = null;
-    let nested: IErrorDetail|null = null;
+    let nested: IErrorDetail;
     const details: IErrorDetail[] = [];
     for (let i = this._propNames.length - 1; i >= 0; i--) {
       const p = this._propNames[i];
@@ -135,17 +131,19 @@ export class DetailContext implements IContext {
         nested = {path, message}
         if (detail) {
           detail.nested = [nested]
+        } else {
+          details.push(nested);
         }
         detail = nested
-        details.push(detail);
       }
     }
     if (this._forks.length) {
+      const forkErrors = this._forks.flatMap(fork => fork.getErrorDetails(path));
       if (detail) {
-        detail.nested = this._forks.map(fork => fork.getErrorDetail(path));
+        detail.nested = forkErrors;
+      } else {
+        details.push(...forkErrors);
       }
-      // Just keep one fork to preserve the old flat error message for now
-      details.push(...this._forks[0].getErrorDetails(path));
     }
 
     return details;
@@ -184,3 +182,23 @@ class DetailUnionResolver implements IUnionResolver {
     return ctx;
   }
 }
+
+const errorLines = (error: IErrorDetail): string[] => {
+  const rootMessage = `${error.path} ${error.message}`;
+  if (error.nested?.length) {
+    if (error.nested.length > 1) {
+      return [
+        rootMessage,
+        ...error.nested.flatMap(errorLines).map(line => "    " + line)
+      ];
+    } else {
+      const [first, ...rest] = errorLines(error.nested[0]);
+      return [
+        `${rootMessage}; ${first}`,
+        ...rest,
+      ];
+    }
+  } else {
+    return [rootMessage];
+  }
+} 

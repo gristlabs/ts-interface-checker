@@ -81,7 +81,7 @@ export class Checker {
    * Returns an error object describing the errors if the given value does not satisfy this
    * Checker's type, or null if it does.
    */
-  public validate(value: any): IErrorDetail|null {
+  public validate(value: any): IErrorDetail[] {
     return this._doValidate(this.checkerPlain, value);
   }
 
@@ -104,7 +104,7 @@ export class Checker {
    * Returns an error object describing the errors if the given value does not satisfy this
    * Checker's type strictly, or null if it does.
    */
-  public strictValidate(value: any): IErrorDetail|null {
+  public strictValidate(value: any): IErrorDetail[] {
     return this._doValidate(this.checkerStrict, value);
   }
 
@@ -175,14 +175,14 @@ export class Checker {
     }
   }
 
-  private _doValidate(checkerFunc: CheckerFunc, value: any): IErrorDetail|null {
+  private _doValidate(checkerFunc: CheckerFunc, value: any): IErrorDetail[] {
     const noopCtx = new NoopContext();
     if (checkerFunc(value, noopCtx)) {
-      return null;
+      return [];
     }
     const detailCtx = new DetailContext();
     checkerFunc(value, detailCtx);
-    return detailCtx.getErrorDetail(this._path);
+    return detailCtx.getErrorDetails(this._path);
   }
 
   private _getMethod(methodName: string): TFunc {
