@@ -185,20 +185,18 @@ class DetailUnionResolver implements IUnionResolver {
 
 const errorLines = (error: IErrorDetail): string[] => {
   const rootMessage = `${error.path} ${error.message}`;
-  if (error.nested?.length) {
-    if (error.nested.length > 1) {
-      return [
-        rootMessage,
-        ...error.nested.flatMap(errorLines).map(line => "    " + line)
-      ];
-    } else {
-      const [first, ...rest] = errorLines(error.nested[0]);
-      return [
-        `${rootMessage}; ${first}`,
-        ...rest,
-      ];
-    }
+  const nestedErrors = error.nested || [];
+  const nestedLines = nestedErrors.flatMap(errorLines);
+  if (nestedErrors.length == 1) {
+    const [first, ...rest] = nestedLines;
+    return [
+      `${rootMessage}; ${first}`,
+      ...rest,
+    ];
   } else {
-    return [rootMessage];
+    return [
+      rootMessage,
+      ...nestedLines.map(line => "    " + line)
+    ];
   }
-} 
+}
