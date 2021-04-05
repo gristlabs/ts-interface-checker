@@ -1,5 +1,5 @@
 import {assert} from "chai";
-import {createCheckers, CheckerT, VError} from "../lib/index";
+import {createCheckers, CheckerT, VError, Checker, IErrorDetail} from "../lib";
 import * as t from "../lib/types";
 import greetTI from "./fixtures/greet-ti";
 import sample from "./fixtures/sample-ti";
@@ -592,35 +592,60 @@ describe("ts-interface-checker", () => {
     }]);
 
     // Mismatching or missing kind.
-    assert.deepEqual(Shape.validate({kind: "square", width: 17, height: 4}), [{
-      path: "value", message: "is none of Square, Rectangle, Circle",
-      nested: [{
-        path: "value", message: "is not a Square",
+    assertCheckerErrors(
+      Shape,
+      {kind: "square", width: 17, height: 4},
+      "value is none of Square, Rectangle, Circle; value is not a Square; value.size is missing",
+      {
+        path: "value", message: "is none of Square, Rectangle, Circle",
         nested: [{
-          path: "value.size", message: "is missing",
+          path: "value", message: "is not a Square",
+          nested: [{
+            path: "value.size", message: "is missing",
+          }],
         }],
-      }],
-    }]);
+      }
+    );
 
     assert.isEmpty(Type.validate({a: 12}));
     assert.isEmpty(Type.validate({a: {foo: 12}}));
-    assert.deepEqual(Type.validate({a: "x"}), [{
-      path: "value", message: "is none of 2 types",
-      nested: [{
-        path: "value.a", message: "is not a number",
-      }],
-    }]);
-    assert.deepEqual(Type.validate({a: {foo: "x"}}), [{
-      path: "value", message: "is none of 2 types",
-      nested: [{
-        path: "value.a", message: "is not a Foo",
+    assertCheckerErrors(
+      Type,
+      {a: "x"},
+      "value is none of 2 types; value.a is not a number",
+      {
+        path: "value", message: "is none of 2 types",
         nested: [{
-          path: "value.a.foo", message: "is not a number",
+          path: "value.a", message: "is not a number",
         }],
-      }],
-    }]);
+      }
+    );
+    assertCheckerErrors(
+      Type,
+      {a: {foo: "x"}},
+      "value is none of 2 types; value.a is not a Foo; value.a.foo is not a number",
+      {
+        path: "value", message: "is none of 2 types",
+        nested: [{
+          path: "value.a", message: "is not a Foo",
+          nested: [{
+            path: "value.a.foo", message: "is not a number",
+          }],
+        }],
+      }
+    );
 
-    assert.deepEqual(Bar.validate({spam: {foo: {}}}), [
+    assertCheckerErrors(
+      Bar,
+      {spam: {foo: {}}},
+      `
+      value.spam is not a Spam
+          value.spam.foo is not a Foo
+              value.spam.foo.x is missing
+              value.spam.foo.y is missing
+          value.spam.z is missing
+      value.other is missing
+      `,
       {
         path: "value.spam", message: "is not a Spam",
         nested: [
@@ -635,10 +660,10 @@ describe("ts-interface-checker", () => {
         ],
       },
       {
+        "path": "value.other",
         "message": "is missing",
-        "path": "value.other"
       },
-    ]);
+    );
 
     const {C} = createCheckers({
       A: t.iface([], {a: "number"}),
@@ -647,23 +672,32 @@ describe("ts-interface-checker", () => {
       C: t.iface([], {ab: "AB"}),
     });
 
-    assert.deepEqual(C.validate({ab: {}}), [{
-      "path": "value.ab", "message": "is not a AB",
-      "nested": [
-        {
-          "path": "value.ab", "message": "is not a A",
-          "nested": [
-            {"path": "value.ab.a", "message": "is missing"}
-          ],
-        },
-        {
-          "path": "value.ab", "message": "is not a B",
-          "nested": [
-            {"path": "value.ab.b", "message": "is missing"}
-          ],
-        }
-      ],
-    }]);
+    assertCheckerErrors(
+      C,
+      {ab: {}},
+      `
+      value.ab is not a AB
+          value.ab is not a A; value.ab.a is missing
+          value.ab is not a B; value.ab.b is missing
+      `,
+      {
+        "path": "value.ab", "message": "is not a AB",
+        "nested": [
+          {
+            "path": "value.ab", "message": "is not a A",
+            "nested": [
+              {"path": "value.ab.a", "message": "is missing"}
+            ],
+          },
+          {
+            "path": "value.ab", "message": "is not a B",
+            "nested": [
+              {"path": "value.ab.b", "message": "is missing"}
+            ],
+          }
+        ],
+      }
+    );
   });
 });
 
@@ -682,4 +716,10 @@ const dedent = (s: string) => {
 
     return "\n" + m1.slice(Math.min(m1.length, size));
   }).trim();
+}
+
+const assertCheckerErrors = (checker: Checker, value: any, message: string, ...errors: IErrorDetail[]): void => {
+  assert.deepEqual(checker.validate(value), errors);
+  assert.throws(() => checker.check(value), dedent(message));
+  assert.isFalse(checker.test(value));
 }
