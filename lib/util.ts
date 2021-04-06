@@ -113,8 +113,7 @@ export class DetailContext implements IContext {
   }
 
   public getError(path: string): VError {
-    const fullMessage = this.getErrorDetails(path)
-        .flatMap(errorLines)
+    const fullMessage = flatten(this.getErrorDetails(path).map(errorLines))
         .join("\n");
     return new VError(path, fullMessage);
   }
@@ -138,7 +137,7 @@ export class DetailContext implements IContext {
       }
     }
     if (this._forks.length) {
-      const forkErrors = this._forks.flatMap(fork => fork.getErrorDetails(path));
+      const forkErrors = flatten(this._forks.map(fork => fork.getErrorDetails(path)));
       if (detail) {
         detail.nested = forkErrors;
       } else {
@@ -186,7 +185,7 @@ class DetailUnionResolver implements IUnionResolver {
 const errorLines = (error: IErrorDetail): string[] => {
   const rootMessage = `${error.path} ${error.message}`;
   const nestedErrors = error.nested || [];
-  const nestedLines = nestedErrors.flatMap(errorLines);
+  const nestedLines = flatten(nestedErrors.map(errorLines));
   if (nestedErrors.length == 1) {
     const [first, ...rest] = nestedLines;
     return [
@@ -199,4 +198,8 @@ const errorLines = (error: IErrorDetail): string[] => {
       ...nestedLines.map(line => "    " + line)
     ];
   }
+}
+
+function flatten<T>(arr: T[][]): T[] {
+  return ([] as T[]).concat(...arr);
 }
