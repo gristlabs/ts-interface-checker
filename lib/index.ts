@@ -78,8 +78,8 @@ export class Checker {
   }
 
   /**
-   * Returns an error object describing the errors if the given value does not satisfy this
-   * Checker's type, or null if it does.
+   * Returns an array of error objects describing the errors if the given value does not satisfy this
+   * Checker's type, or an empty array if it does.
    */
   public validate(value: any): IErrorDetail[] {
     return this._doValidate(this.checkerPlain, value);
@@ -101,8 +101,8 @@ export class Checker {
   }
 
   /**
-   * Returns an error object describing the errors if the given value does not satisfy this
-   * Checker's type strictly, or null if it does.
+   * Returns an array of error objects describing the errors if the given value does not satisfy this
+   * Checker's type strictly, or an empty array if it does.
    */
   public strictValidate(value: any): IErrorDetail[] {
     return this._doValidate(this.checkerStrict, value);

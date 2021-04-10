@@ -42,7 +42,7 @@ const patchMethod = (
     const notFailedDetail = (ctx: any, original: Function) => {
         assert.isEmpty(ctx._propNames, message);
         assert.isEmpty(ctx._messages, message);
-        assert.isBelow(ctx._failedForks.length, ctx._maxForks, message);
+        assert.isBelow(ctx._failedForks.length, DetailContext.maxForks, message);
         return original();
     };
     patchMethod(DetailContext, "fork", notFailedDetail);
