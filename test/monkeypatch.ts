@@ -1,5 +1,5 @@
 import {assert} from "chai";
-import {DetailContext, NoopContext} from "../lib/util";
+import {DetailContext, IErrorDetail, NoopContext} from "../lib/util";
 
 /**
  * Replace the method called `name` of `cls`
@@ -111,4 +111,82 @@ const patchMethod = (
     );
     return original();
   });
+}
+
+/**
+ * Sanity checks on error details and messages
+ */
+{
+  /** Ensure there are no empty strings or arrays */
+  const checkErrorDetails = (errors: IErrorDetail[]) => {
+    errors.forEach(error => {
+      assert.isNotEmpty(error.path);
+      assert.isNotEmpty(error.message);
+      if (error.nested) {
+        assert.isNotEmpty(error.nested);
+        checkErrorDetails(error.nested);
+      }
+    })
+  }
+
+  patchMethod(DetailContext, "getErrorDetails", (ctx, original) => {
+    const result = original();
+    checkErrorDetails(result);
+    assert.equal(
+      result.length > 0,
+      ctx._failed(),
+      "getErrorDetails() should return an empty array if and only if the context failed."
+    );
+    if (ctx._messages.length) {
+      assert.equal(
+        result.length,
+        1,
+        "Plain failures should produce 1 error at the top level"
+      );
+    } else {
+      assert.equal(result.length, ctx._failedForks.length);
+    }
+    return result;
+  });
+
+  patchMethod(DetailContext, "getError", (ctx, original) => {
+    assert.isTrue(ctx._failed(), "getError() should only be called after a NoopContext failed");
+    const result = original();
+    assert.isNotEmpty(result.path);
+    assert.isNotEmpty(result.message);
+    return result;
+  });
+}
+
+/**
+ * Things that should always be true for DetailContext
+ */
+{
+  const always = (ctx: any, original: Function) => {
+    assert.equal(ctx._propNames.length, ctx._messages.length);
+
+    assert.isAtMost(ctx._failedForks.length, DetailContext.maxForks);
+    ctx._failedForks.forEach((fork: any) => {
+      assert.isTrue(fork._failed());
+    });
+
+    const forkFailed = ctx._currentFork?._failed();
+
+    const result = original();
+
+    // ctx._currentFork._failed() may be true when completeFork() is called,
+    // but then ctx._currentFork should be set to null
+    assert.isNotTrue(ctx._currentFork?._failed());
+    if (forkFailed) {
+      assert.isNull(ctx._currentFork);
+    }
+
+    return result;
+  }
+
+  "getError getErrorDetails fail failed fork completeFork unionResolver resolveUnion"
+    .split(" ")
+    .forEach(name => {
+      patchMethod(DetailContext, name, always);
+    });
 }
