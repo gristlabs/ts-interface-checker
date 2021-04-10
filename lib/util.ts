@@ -250,7 +250,7 @@ class DetailUnionResolver implements IUnionResolver {
 /**
  * Returns lines of a message describing `error`.
  * The lines should be newline separated in the final message.
- * Only returns multiple lines if `error` or a descendent
+ * Only returns multiple lines if `error` or a descendant
  * has multiple errors in its `.nested` array.
  * Simple paths of nested errors anywhere in the tree
  * are collapsed into a single line until a branch is reached.

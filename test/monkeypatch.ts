@@ -135,7 +135,7 @@ const patchMethod = (
     assert.equal(
       result.length > 0,
       ctx._failed(),
-      "getErrorDetails() should return an empty array if and only if the context failed."
+      "getErrorDetails() should return a non-empty array if and only if the context failed."
     );
     if (ctx._messages.length) {
       assert.equal(
