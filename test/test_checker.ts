@@ -700,6 +700,33 @@ describe("ts-interface-checker", () => {
       }
     );
   });
+
+  it("should not return too many errors", () => {
+    const {Foo} = createCheckers({
+      Foo: t.iface([], {
+        a: "number",
+        b: "number",
+        c: "number",
+        d: "number",
+        e: "number",
+        f: "number",
+      }),
+    });
+
+    assertCheckerErrors(
+      Foo,
+      {},
+      // Only DetailContext.maxForks (3) errors
+      `
+      value.a is missing
+      value.b is missing
+      value.c is missing
+      `,
+      {"path": "value.a", "message": "is missing"},
+      {"path": "value.b", "message": "is missing"},
+      {"path": "value.c", "message": "is missing"},
+    );
+  });
 });
 
 /**
