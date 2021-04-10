@@ -9,6 +9,7 @@ import enumUnionTI from "./fixtures/enum-union-ti";
 import intersectionTI from "./fixtures/intersection-ti";
 import indexSignaturesTI from "./fixtures/index-signatures-ti";
 import recursiveTI from "./fixtures/recursive-ti";
+import "./monkeypatch";
 
 function noop() { /* noop */ }
 

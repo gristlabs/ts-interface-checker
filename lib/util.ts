@@ -81,8 +81,9 @@ export class DetailContext implements IContext {
   private _propNames: Array<string|number|null> = [];
   private _messages: Array<string|null> = [];
 
-  private _forks: Array<DetailContext> = [];
+  private _failedForks: Array<DetailContext> = [];
   private _maxForks = 3;
+  private _currentFork: DetailContext|null = null;
 
   // Score is used to choose the best union member whose DetailContext to use for reporting.
   // Higher score means better match (or rather less severe mismatch).
@@ -108,7 +109,7 @@ export class DetailContext implements IContext {
     if (best && best._score > 0) {
       this._propNames.push(...best._propNames);
       this._messages.push(...best._messages);
-      this._forks.push(...best._forks);
+      this._failedForks.push(...best._failedForks);
     }
   }
 
@@ -136,8 +137,8 @@ export class DetailContext implements IContext {
         detail = nested
       }
     }
-    if (this._forks.length) {
-      const forkErrors = flatten(this._forks.map(fork => fork.getErrorDetails(path)));
+    if (this._failedForks.length) {
+      const forkErrors = flatten(this._failedForks.map(fork => fork.getErrorDetails(path)));
       if (detail) {
         detail.nested = forkErrors;
       } else {
@@ -149,27 +150,32 @@ export class DetailContext implements IContext {
   }
 
   public fork(): IContext {
-    const ctx = new DetailContext();
-    this._forks.push(ctx);
-    return ctx;
+    if (this._currentFork == null) {
+      this._currentFork = new DetailContext();
+    }
+    return this._currentFork;
   }
 
   public completeFork(): boolean {
-    const fork = this._forks[this._forks.length - 1];
-    if (fork.failed()) {
+    const fork = this._currentFork!;
+    if (fork._failed()) {
       // To preserve old behaviour, use the score of the first failure
       // Might want to revise this
-      if (this._forks.length == 1) {
+      if (!this._failedForks.length) {
         this._score = fork._score;
       }
-    } else {
-      this._forks.pop();
+      this._failedForks.push(fork);
+      this._currentFork = null;
     }
-    return this._forks.length < this._maxForks;
+    return this._failedForks.length < this._maxForks;
   }
 
   public failed(): boolean {
-    return this._propNames.length + this._forks.length > 0;
+    return this._failed();
+  }
+
+  private _failed(): boolean {
+    return this._propNames.length + this._failedForks.length > 0;
   }
 }
 
