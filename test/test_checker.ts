@@ -705,6 +705,9 @@ describe("ts-interface-checker", () => {
 /**
  * Removes common leading indentation from a multiline string
  * Based on https://stackoverflow.com/a/25937397/2482744
+ *
+ * The string should start with a newline so that the indentation
+ * can be calculated from the first non-blank line.
  */
 const dedent = (s: string) => {
   let size = -1;
@@ -719,6 +722,9 @@ const dedent = (s: string) => {
   }).trim();
 }
 
+/**
+ * Test error message from check() and error details from validate() at the same time.
+ */
 const assertCheckerErrors = (checker: Checker, value: any, message: string, ...errors: IErrorDetail[]): void => {
   assert.deepEqual(checker.validate(value), errors);
   assert.throws(() => checker.check(value), dedent(message));
