@@ -78,10 +78,10 @@ export class Checker {
   }
 
   /**
-   * Returns an array of error objects describing the errors if the given value does not satisfy this
-   * Checker's type, or an empty array if it does.
+   * Returns an error object describing the errors if the given value does not satisfy this
+   * Checker's type, or null if it does.
    */
-  public validate(value: any): IErrorDetail[] {
+  public validate(value: any): IErrorDetail[]|null {
     return this._doValidate(this.checkerPlain, value);
   }
 
@@ -101,10 +101,10 @@ export class Checker {
   }
 
   /**
-   * Returns an array of error objects describing the errors if the given value does not satisfy this
-   * Checker's type strictly, or an empty array if it does.
+   * Returns an error object describing the errors if the given value does not satisfy this
+   * Checker's type strictly, or null if it does.
    */
-  public strictValidate(value: any): IErrorDetail[] {
+  public strictValidate(value: any): IErrorDetail[]|null {
     return this._doValidate(this.checkerStrict, value);
   }
 
@@ -175,10 +175,10 @@ export class Checker {
     }
   }
 
-  private _doValidate(checkerFunc: CheckerFunc, value: any): IErrorDetail[] {
+  private _doValidate(checkerFunc: CheckerFunc, value: any): IErrorDetail[]|null {
     const noopCtx = new NoopContext();
     if (checkerFunc(value, noopCtx)) {
-      return [];
+      return null;
     }
     const detailCtx = new DetailContext();
     checkerFunc(value, detailCtx);

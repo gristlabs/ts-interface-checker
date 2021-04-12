@@ -576,12 +576,12 @@ describe("ts-interface-checker", () => {
       Foo: t.iface([], {x: "number", y: "number"}),
     });
 
-    assert.isEmpty(Shape.validate({kind: "square", size: 17}));
-    assert.isEmpty(Shape.validate({kind: "rectangle", width: 17, height: 4}));
-    assert.isEmpty(Shape.validate({kind: "circle", radius: 0.5}));
+    assert.isNull(Shape.validate({kind: "square", size: 17}));
+    assert.isNull(Shape.validate({kind: "rectangle", width: 17, height: 4}));
+    assert.isNull(Shape.validate({kind: "circle", radius: 0.5}));
 
     // Extraneous property.
-    assert.isEmpty(Shape.validate({kind: "square", size: 17, depth: 5}));
+    assert.isNull(Shape.validate({kind: "square", size: 17, depth: 5}));
     assert.deepEqual(Shape.strictValidate({kind: "square", size: 17, depth: 5}), [{
       path: "value", message: "is none of Square, Rectangle, Circle",
       nested: [{
@@ -608,8 +608,8 @@ describe("ts-interface-checker", () => {
       }
     );
 
-    assert.isEmpty(Type.validate({a: 12}));
-    assert.isEmpty(Type.validate({a: {foo: 12}}));
+    assert.isNull(Type.validate({a: 12}));
+    assert.isNull(Type.validate({a: {foo: 12}}));
     assertCheckerErrors(
       Type,
       {a: "x"},
