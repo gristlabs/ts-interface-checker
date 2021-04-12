@@ -28,13 +28,13 @@ export interface IContext {
    *    whether it's in a deeper checker or when calling fail().
    * - After using the fork to check one 'thing' (e.g. a property or a base class), write:
    *
-   *       if (!ctx.completeFork()) {
+   *       if (!origContext.completeFork()) {
    *         return false;
    *       }
    *
    *    Always call completeFork(), regardless of whether there was a failure.
    *    Do this instead of returning directly after a failure as is done with non-forked type checkers.
-   * - Once you're done checking, `return !ctx.failed()`
+   * - At the end of your checker function, `return !ctx.failed()`
    *    to check whether any failures were gathered along the way in forks.
    */
   fork(): IContext;
@@ -47,6 +47,9 @@ export interface IContext {
    *
    * Returns true if the checker should keep checking the current object,
    * or false if enough failures have been noted and the checker should return now.
+   *
+   * If this returns false then that implies that failed() would return true,
+   * although the reverse it not necessarily true.
    */
   completeFork(): boolean;
 
@@ -168,7 +171,7 @@ export class DetailContext implements IContext {
   public getErrorDetails(path: string): IErrorDetail[] {
     let detail: IErrorDetail|null = null;
     let nested: IErrorDetail;
-    const details: IErrorDetail[] = [];
+    let details: IErrorDetail[] = [];
 
     // As checkers call fail() and return to their parent checkers,
     // the deepest failures are recorded first.
@@ -188,14 +191,20 @@ export class DetailContext implements IContext {
         // This is the root failure, so it will be returned
         details.push(nested);
       }
-      detail = nested
+      // Move into the deeper error
+      detail = nested;
     }
 
     const forkErrors = flatten(this._failedForks.map(fork => fork.getErrorDetails(path)));
-    if (detail && forkErrors.length) {  // don't put an empty array in detail.nested
-      detail.nested = forkErrors;
+    if (detail) {
+      // don't put an empty array in detail.nested
+      if (forkErrors.length) {
+        // detail is the deepest nested error, so detail.nested is null at this point
+        detail.nested = forkErrors;
+      }
     } else {
-      details.push(...forkErrors);
+      // There were no 'plain' failures, only fork failures
+      details = forkErrors;
     }
 
     return details;

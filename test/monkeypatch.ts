@@ -119,11 +119,11 @@ const patchMethod = (
 {
   /** Ensure there are no empty strings or arrays */
   const checkErrorDetails = (errors: IErrorDetail[]) => {
+    assert.isNotEmpty(errors, "There shouldn't be any empty arrays of errors anywhere");
     errors.forEach(error => {
       assert.isNotEmpty(error.path);
       assert.isNotEmpty(error.message);
       if (error.nested) {
-        assert.isNotEmpty(error.nested);
         checkErrorDetails(error.nested);
       }
     })
@@ -131,12 +131,8 @@ const patchMethod = (
 
   patchMethod(DetailContext, "getErrorDetails", (ctx, original) => {
     const result = original();
+    assert.isTrue(ctx._failed(), "getErrorDetails() should only be called after a NoopContext failed");
     checkErrorDetails(result);
-    assert.equal(
-      result.length > 0,
-      ctx._failed(),
-      "getErrorDetails() should return a non-empty array if and only if the context failed."
-    );
     if (ctx._messages.length) {
       assert.equal(
         result.length,
