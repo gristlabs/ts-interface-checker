@@ -78,7 +78,7 @@ export class Checker {
   }
 
   /**
-   * Returns an error object describing the errors if the given value does not satisfy this
+   * Returns a non-empty array of error objects describing the errors if the given value does not satisfy this
    * Checker's type, or null if it does.
    */
   public validate(value: any): IErrorDetail[]|null {
@@ -101,7 +101,7 @@ export class Checker {
   }
 
   /**
-   * Returns an error object describing the errors if the given value does not satisfy this
+   * Returns a non-empty array of error objects describing the errors if the given value does not satisfy this
    * Checker's type strictly, or null if it does.
    */
   public strictValidate(value: any): IErrorDetail[]|null {
