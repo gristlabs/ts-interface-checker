@@ -9,7 +9,7 @@ import enumUnionTI from "./fixtures/enum-union-ti";
 import intersectionTI from "./fixtures/intersection-ti";
 import indexSignaturesTI from "./fixtures/index-signatures-ti";
 import recursiveTI from "./fixtures/recursive-ti";
-import "./monkeypatch";
+import {applyPatches, removePatches} from "./monkeypatch";
 
 function noop() { /* noop */ }
 
@@ -20,7 +20,15 @@ interface ICacheItemInterface {
   tag?: string
 }
 
-describe("ts-interface-checker", () => {
+describe("ts-interface-checker", suite);
+
+describe('ts-interface-checker-with-asserts', () => {
+  before(() => applyPatches());
+  after(() => removePatches());
+  suite();
+});
+
+function suite() {
   it("should validate data", () => {
     const {ICacheItem} = createCheckers({ICacheItem: sample.ICacheItem});
 
@@ -727,7 +735,8 @@ describe("ts-interface-checker", () => {
       {"path": "value.c", "message": "is missing"},
     );
   });
-});
+};
+
 
 /**
  * Removes common leading indentation from a multiline string

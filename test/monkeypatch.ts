@@ -25,11 +25,21 @@ const patchMethod = (
   }
 };
 
-/**
- * In fork() and in failed(),
- * assert that the user shouldn't have returned due to previous failure(s).
- */
-{
+const originalPrototypes = {
+  NoopContext: {...NoopContext.prototype},
+  DetailContext: {...DetailContext.prototype},
+}
+
+export const removePatches = () => {
+  (NoopContext as any).prototype = originalPrototypes.NoopContext;
+  (DetailContext as any).prototype = originalPrototypes.DetailContext;
+}
+
+export const applyPatches = () => {
+  /* In fork() and in failed(),
+   * assert that the user shouldn't have returned due to previous failure(s).
+   */
+
   const message = "This context has failed too much, " +
     "you should have returned already after a call to fail() or completeFork()."
   const notFailedNoop = (ctx: any, original: Function) => {
@@ -47,17 +57,15 @@ const patchMethod = (
   };
   patchMethod(DetailContext, "fork", notFailedDetail);
   patchMethod(DetailContext, "failed", notFailedDetail);
-}
 
-// The remaining assertions only apply to DetailContext
-// We can't assert much about NoopContext because it returns itself
-// instead of creating new contexts when forked
+  // The remaining assertions only apply to DetailContext
+  // We can't assert much about NoopContext because it returns itself
+  // instead of creating new contexts when forked
 
-/**
- * Assert that fork() and completeFork() are called in pairs,
- * and that the forked context is used between instead of the original.
- */
-{
+  /* Assert that fork() and completeFork() are called in pairs,
+   * and that the forked context is used between instead of the original.
+   */
+
   patchMethod(DetailContext, "fork", (ctx, original) => {
     assert.isNotTrue(
       ctx._activeFork,
@@ -85,10 +93,13 @@ const patchMethod = (
     );
     return original();
   });
-}
 
-/** See error message in assertion */
-{
+  const shouldCallFailedMessage = "Called ctx.fail() after ctx.completeFork() returned true " +
+      "without an intervening call to ctx.failed(). " +
+      "Once a checker starts forking its context, " +
+      "it mustn't call fail() directly on that context or pass it to other checkers, " +
+      "and it must return !ctx.failed() at the end."
+
   patchMethod(DetailContext, "completeFork", (ctx, original) => {
     const result = original();
     ctx._shouldCallFailed = result;
@@ -101,22 +112,13 @@ const patchMethod = (
   });
 
   patchMethod(DetailContext, "fail", (ctx, original) => {
-    assert.isNotTrue(
-      ctx._shouldCallFailed,
-      "Called ctx.fail() after ctx.completeFork() returned true " +
-      "without an intervening call to ctx.failed(). " +
-      "Once a checker starts forking its context, " +
-      "it mustn't call fail() directly on that context or pass it to other checkers, " +
-      "and it must return !ctx.failed() at the end."
-    );
+    assert.isNotTrue(ctx._shouldCallFailed, shouldCallFailedMessage);
     return original();
   });
-}
 
-/**
- * Sanity checks on error details and messages
- */
-{
+  /* Sanity checks on error details and messages
+   */
+
   /** Ensure there are no empty strings or arrays */
   const checkErrorDetails = (errors: IErrorDetail[]) => {
     assert.isNotEmpty(errors, "There shouldn't be any empty arrays of errors anywhere");
@@ -152,12 +154,10 @@ const patchMethod = (
     assert.isNotEmpty(result.message);
     return result;
   });
-}
 
-/**
- * Things that should always be true for DetailContext
- */
-{
+  /* Things that should always be true for DetailContext
+   */
+
   const always = (ctx: any, original: Function) => {
     assert.equal(ctx._propNames.length, ctx._messages.length);
 
