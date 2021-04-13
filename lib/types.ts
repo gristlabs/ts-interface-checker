@@ -199,9 +199,10 @@ export class TIntersection extends TType {
   public getChecker(suite: ITypeSuite, strict: boolean, allowedProps: Set<string> = new Set()): CheckerFunc {
     const itemCheckers = this.ttypes.map((t) => t.getChecker(suite, strict, allowedProps));
     return (value: any, ctx: IContext) => {
-      const ok = itemCheckers.every(checker => checker(value, ctx))
-      if (ok) { return true; }
-      return ctx.fail(null, null, 0);
+      return itemCheckers.every(checker => {
+        checker(value, ctx.fork());
+        return ctx.completeFork();
+      }) && !ctx.failed();
     };
   }
 }
@@ -301,42 +302,55 @@ export class TIface extends TType {
     const isPropRequired: boolean[] = this.props.map((prop, i) =>
       !prop.isOpt && !propCheckers[i](undefined, testCtx));
 
-    const checker = (value: any, ctx: IContext) => {
+    return (value: any, ctx: IContext) => {
       if (typeof value !== "object" || value === null) { return ctx.fail(null, "is not an object", 0); }
       for (let i = 0; i < baseCheckers.length; i++) {
-        if (!baseCheckers[i](value, ctx)) { return false; }
+        baseCheckers[i](value, ctx.fork());
+        if (!ctx.completeFork()) {
+          return false;
+        }
       }
       for (let i = 0; i < propCheckers.length; i++) {
         const name = this.props[i].name;
         const v = value[name];
         if (v === undefined) {
-          if (isPropRequired[i]) { return ctx.fail(name, "is missing", 1); }
+          if (isPropRequired[i]) {
+            ctx.fork().fail(name, "is missing", 1);
+            if (!ctx.completeFork()) {
+              return false;
+            }
+          }
         } else {
-          const ok = propCheckers[i](v, ctx);
-          if (!ok) { return ctx.fail(name, null, 1); }
+          const fork = ctx.fork();
+          const ok = propCheckers[i](v, fork);
+          if (!ok) { fork.fail(name, null, 1); }
+          if (!ctx.completeFork()) {
+            return false;
+          }
         }
       }
       if (indexTypeChecker) {
         for (const prop in value) {
-          if (!indexTypeChecker(value[prop], ctx)) {
-            return ctx.fail(prop, null, 1);
+          const fork = ctx.fork();
+          if (!indexTypeChecker(value[prop], fork)) {
+            fork.fail(prop, null, 1);
+          }
+          if (!ctx.completeFork()) {
+            return false;
+          }
+        }
+      } else if (strict) {
+        // In strict mode, check also for unknown enumerable properties.
+        for (const prop in value) {
+          if (!allowedProps.has(prop)) {
+            ctx.fork().fail(prop, "is extraneous", 2);
+            if (!ctx.completeFork()) {
+              return false;
+            }
           }
         }
       }
-      return true;
-    };
-
-    if (!strict || indexTypeChecker) { return checker; }
-
-    // In strict mode, check also for unknown enumerable properties.
-    return (value: any, ctx: IContext) => {
-      if (!checker(value, ctx)) { return false; }
-      for (const prop in value) {
-        if (!allowedProps.has(prop)) {
-          return ctx.fail(prop, "is extraneous", 2);
-        }
-      }
-      return true;
+      return !ctx.failed();
     };
   }
 }

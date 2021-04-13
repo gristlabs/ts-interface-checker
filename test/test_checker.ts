@@ -1,5 +1,5 @@
 import {assert} from "chai";
-import {createCheckers, CheckerT, VError} from "../lib/index";
+import {createCheckers, CheckerT, VError, Checker, IErrorDetail} from "../lib";
 import * as t from "../lib/types";
 import greetTI from "./fixtures/greet-ti";
 import sample from "./fixtures/sample-ti";
@@ -9,6 +9,7 @@ import enumUnionTI from "./fixtures/enum-union-ti";
 import intersectionTI from "./fixtures/intersection-ti";
 import indexSignaturesTI from "./fixtures/index-signatures-ti";
 import recursiveTI from "./fixtures/recursive-ti";
+import {applyPatches, removePatches} from "./monkeypatch";
 
 function noop() { /* noop */ }
 
@@ -19,7 +20,15 @@ interface ICacheItemInterface {
   tag?: string
 }
 
-describe("ts-interface-checker", () => {
+describe("ts-interface-checker", suite);
+
+describe('ts-interface-checker-with-asserts', () => {
+  before(() => applyPatches());
+  after(() => removePatches());
+  suite();
+});
+
+function suite() {
   it("should validate data", () => {
     const {ICacheItem} = createCheckers({ICacheItem: sample.ICacheItem});
 
@@ -228,6 +237,7 @@ describe("ts-interface-checker", () => {
   it("should handle discriminated unions", () => {
     const {Shape} = createCheckers(shapes);
     Shape.check({kind: "square", size: 17});
+    Shape.strictCheck({kind: "square", size: 17});
     Shape.check({kind: "rectangle", width: 17, height: 4});
     Shape.check({kind: "circle", radius: 0.5});
 
@@ -240,7 +250,11 @@ describe("ts-interface-checker", () => {
     assert.throws(() => Shape.check({kind: "square", width: 17, height: 4}),
       /value.size is missing/);
     assert.throws(() => Shape.check({kind: "rectangle", radius: 0.5}),
-      /^value is none of Square, Rectangle, Circle; value is not a Rectangle; value.width is missing$/);
+      dedent(`
+        value is none of Square, Rectangle, Circle; value is not a Rectangle
+            value.width is missing
+            value.height is missing
+    `));
     assert.throws(() => Shape.check({width: 17, height: 4}), /value.kind is missing/);
 
     // Missing or misspelled property.
@@ -564,6 +578,11 @@ describe("ts-interface-checker", () => {
       Type: t.union(t.iface([], {a: "Foo"}),
                     t.iface([], {a: "number"})),
     });
+    const {Bar} = createCheckers({
+      Bar: t.iface([], {spam: "Spam", other: "number"}),
+      Spam: t.iface([], {foo: "Foo", z: "number"}),
+      Foo: t.iface([], {x: "number", y: "number"}),
+    });
 
     assert.isNull(Shape.validate({kind: "square", size: 17}));
     assert.isNull(Shape.validate({kind: "rectangle", width: 17, height: 4}));
@@ -571,7 +590,7 @@ describe("ts-interface-checker", () => {
 
     // Extraneous property.
     assert.isNull(Shape.validate({kind: "square", size: 17, depth: 5}));
-    assert.deepEqual(Shape.strictValidate({kind: "square", size: 17, depth: 5}), {
+    assert.deepEqual(Shape.strictValidate({kind: "square", size: 17, depth: 5}), [{
       path: "value", message: "is none of Square, Rectangle, Circle",
       nested: [{
         path: "value", message: "is not a Square",
@@ -579,35 +598,171 @@ describe("ts-interface-checker", () => {
           path: "value.depth", message: "is extraneous",
         }],
       }],
-    });
+    }]);
 
     // Mismatching or missing kind.
-    assert.deepEqual(Shape.validate({kind: "square", width: 17, height: 4}), {
-      path: "value", message: "is none of Square, Rectangle, Circle",
-      nested: [{
-        path: "value", message: "is not a Square",
+    assertCheckerErrors(
+      Shape,
+      {kind: "square", width: 17, height: 4},
+      "value is none of Square, Rectangle, Circle; value is not a Square; value.size is missing",
+      {
+        path: "value", message: "is none of Square, Rectangle, Circle",
         nested: [{
-          path: "value.size", message: "is missing",
+          path: "value", message: "is not a Square",
+          nested: [{
+            path: "value.size", message: "is missing",
+          }],
         }],
-      }],
-    });
+      }
+    );
 
     assert.isNull(Type.validate({a: 12}));
     assert.isNull(Type.validate({a: {foo: 12}}));
-    assert.deepEqual(Type.validate({a: "x"}), {
-      path: "value", message: "is none of 2 types",
-      nested: [{
-        path: "value.a", message: "is not a number",
-      }],
-    });
-    assert.deepEqual(Type.validate({a: {foo: "x"}}), {
-      path: "value", message: "is none of 2 types",
-      nested: [{
-        path: "value.a", message: "is not a Foo",
+    assertCheckerErrors(
+      Type,
+      {a: "x"},
+      "value is none of 2 types; value.a is not a number",
+      {
+        path: "value", message: "is none of 2 types",
         nested: [{
-          path: "value.a.foo", message: "is not a number",
+          path: "value.a", message: "is not a number",
         }],
-      }],
+      }
+    );
+    assertCheckerErrors(
+      Type,
+      {a: {foo: "x"}},
+      "value is none of 2 types; value.a is not a Foo; value.a.foo is not a number",
+      {
+        path: "value", message: "is none of 2 types",
+        nested: [{
+          path: "value.a", message: "is not a Foo",
+          nested: [{
+            path: "value.a.foo", message: "is not a number",
+          }],
+        }],
+      }
+    );
+
+    assertCheckerErrors(
+      Bar,
+      {spam: {foo: {}}},
+      `
+      value.spam is not a Spam
+          value.spam.foo is not a Foo
+              value.spam.foo.x is missing
+              value.spam.foo.y is missing
+          value.spam.z is missing
+      value.other is missing
+      `,
+      {
+        path: "value.spam", message: "is not a Spam",
+        nested: [
+          {
+            path: "value.spam.foo", message: "is not a Foo",
+            nested: [
+              {path: "value.spam.foo.x", message: "is missing"},
+              {path: "value.spam.foo.y", message: "is missing"},
+            ],
+          },
+          {path: "value.spam.z", message: "is missing"},
+        ],
+      },
+      {
+        "path": "value.other",
+        "message": "is missing",
+      },
+    );
+
+    const {C} = createCheckers({
+      A: t.iface([], {a: "number"}),
+      B: t.iface([], {b: "number"}),
+      AB: t.intersection("A", "B"),
+      C: t.iface([], {ab: "AB"}),
     });
+
+    assertCheckerErrors(
+      C,
+      {ab: {}},
+      `
+      value.ab is not a AB
+          value.ab is not a A; value.ab.a is missing
+          value.ab is not a B; value.ab.b is missing
+      `,
+      {
+        "path": "value.ab", "message": "is not a AB",
+        "nested": [
+          {
+            "path": "value.ab", "message": "is not a A",
+            "nested": [
+              {"path": "value.ab.a", "message": "is missing"}
+            ],
+          },
+          {
+            "path": "value.ab", "message": "is not a B",
+            "nested": [
+              {"path": "value.ab.b", "message": "is missing"}
+            ],
+          }
+        ],
+      }
+    );
   });
-});
+
+  it("should not return too many errors", () => {
+    const {Foo} = createCheckers({
+      Foo: t.iface([], {
+        a: "number",
+        b: "number",
+        c: "number",
+        d: "number",
+        e: "number",
+        f: "number",
+      }),
+    });
+
+    assertCheckerErrors(
+      Foo,
+      {},
+      // Only DetailContext.maxForks (3) errors
+      `
+      value.a is missing
+      value.b is missing
+      value.c is missing
+      `,
+      {"path": "value.a", "message": "is missing"},
+      {"path": "value.b", "message": "is missing"},
+      {"path": "value.c", "message": "is missing"},
+    );
+  });
+};
+
+
+/**
+ * Removes common leading indentation from a multiline string
+ * Based on https://stackoverflow.com/a/25937397/2482744
+ *
+ * The string should start with a newline so that the indentation
+ * can be calculated from the first non-blank line.
+ */
+const dedent = (s: string) => {
+  let size = -1;
+
+  return s.replace(/\n(\s+)/g, (m, m1) => {
+
+    if (size < 0) {
+      size = m1.replace(/\t/g, "    ").length;
+    }
+
+    return "\n" + m1.slice(Math.min(m1.length, size));
+  }).trim();
+}
+
+/**
+ * Test error message from check() and error details from validate() at the same time.
+ */
+const assertCheckerErrors = (checker: Checker, value: any, message: string, ...errors: IErrorDetail[]): void => {
+  assert.deepEqual(checker.validate(value), errors);
+  assert.throws(() => checker.check(value), dedent(message));
+  assert.isFalse(checker.test(value));
+}
