@@ -106,8 +106,9 @@ export class TArray extends TType {
   public name?: string;
   constructor(public ttype: TType) {
     super();
-    if (ttype instanceof TName || ttype instanceof TLiteral || ttype instanceof TArray) {
-      this.name = ttype.name ? `${ttype.name}[]` : undefined;
+    const elementTypeName = getTypeName(ttype)
+    if (elementTypeName) {
+      this.name = `${elementTypeName}[]`
     }
   }
 
@@ -164,7 +165,7 @@ export class TUnion extends TType {
   private _failMsg: string;
   constructor(public ttypes: TType[]) {
     super();
-    const names = ttypes.map((t) => t instanceof TName || t instanceof TLiteral || t instanceof TArray ? t.name : null)
+    const names = ttypes.map(getTypeName)
       .filter((n) => n);
     const otherTypes: number = ttypes.length - names.length;
     if (names.length) {
@@ -498,4 +499,10 @@ if (typeof Buffer !== "undefined") {
 for (const array of [Int8Array, Uint8Array, Uint8ClampedArray, Int16Array, Uint16Array,
                      Int32Array, Uint32Array, Float32Array, Float64Array, ArrayBuffer]) {
   basicTypes[array.name] = new BasicType((v) => (v instanceof array), `is not a ${array.name}`);
+}
+
+function getTypeName(t: TType): string | undefined {
+  if (t instanceof TName || t instanceof TLiteral || t instanceof TArray) {
+    return t.name
+  }
 }

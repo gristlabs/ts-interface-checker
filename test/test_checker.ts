@@ -737,7 +737,7 @@ function suite() {
   });
 
   it("should name array types in error messages", () => {
-    const {MixedArray, ArrayUnion} = createCheckers(enumUnionTI);
+    const {MixedArray, ArrayUnion, UnionWithUnnamedArray} = createCheckers(enumUnionTI);
 
     MixedArray.check(['one', 'two', 'three']);
     MixedArray.check(['one', 'two', 'three']);
@@ -748,6 +748,11 @@ function suite() {
     ArrayUnion.check([1, 2, 3]);
     ArrayUnion.check([true, false]);
     assert.throws(() => ArrayUnion.check([undefined]), "value is none of string[], boolean[], number[], string[][]");
+
+    UnionWithUnnamedArray.check(['one', 'two', 'three']);
+    UnionWithUnnamedArray.check([1, 2, 3]);
+    UnionWithUnnamedArray.check(['one', false]);
+    assert.throws(() => UnionWithUnnamedArray.check([undefined]), "value is none of string[], number[], 1 more; value[0] is none of string, boolean");
   });
 
 };

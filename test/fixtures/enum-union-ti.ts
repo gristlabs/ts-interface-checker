@@ -34,6 +34,8 @@ export const MixedArray = t.array(t.union("string", "number", t.array("string"))
 
 export const ArrayUnion = t.union(t.array("string"), t.array("boolean"), t.array("number"), t.array(t.array("string")));
 
+export const UnionWithUnnamedArray = t.union(t.array("string"), t.array("number"), t.array(t.union("string", "boolean")));
+
 const exportedTypeSuite: t.ITypeSuite = {
   ShapeKind,
   Shape,
@@ -42,5 +44,6 @@ const exportedTypeSuite: t.ITypeSuite = {
   Circle,
   MixedArray,
   ArrayUnion,
+  UnionWithUnnamedArray,
 };
 export default exportedTypeSuite;
