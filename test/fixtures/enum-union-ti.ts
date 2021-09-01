@@ -30,11 +30,17 @@ export const Circle = t.iface(["Shape"], {
   "radius": "number",
 });
 
+export const MixedArray = t.array(t.union("string", "number", t.array("string")));
+
+export const ArrayUnion = t.union(t.array("string"), t.array("boolean"), t.array("number"), t.array(t.array("string")));
+
 const exportedTypeSuite: t.ITypeSuite = {
   ShapeKind,
   Shape,
   Square,
   Rectangle,
   Circle,
+  MixedArray,
+  ArrayUnion,
 };
 export default exportedTypeSuite;

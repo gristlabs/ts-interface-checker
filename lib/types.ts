@@ -103,7 +103,13 @@ export class TLiteral extends TType {
  */
 export function array(typeSpec: TypeSpec): TArray { return new TArray(parseSpec(typeSpec)); }
 export class TArray extends TType {
-  constructor(public ttype: TType) { super(); }
+  public name?: string;
+  constructor(public ttype: TType) {
+    super();
+    if (ttype instanceof TName || ttype instanceof TLiteral || ttype instanceof TArray) {
+      this.name = ttype.name ? `${ttype.name}[]` : undefined;
+    }
+  }
 
   public getChecker(suite: ITypeSuite, strict: boolean): CheckerFunc {
     const itemChecker = this.ttype.getChecker(suite, strict);
@@ -158,7 +164,7 @@ export class TUnion extends TType {
   private _failMsg: string;
   constructor(public ttypes: TType[]) {
     super();
-    const names = ttypes.map((t) => t instanceof TName || t instanceof TLiteral ? t.name : null)
+    const names = ttypes.map((t) => t instanceof TName || t instanceof TLiteral || t instanceof TArray ? t.name : null)
       .filter((n) => n);
     const otherTypes: number = ttypes.length - names.length;
     if (names.length) {
