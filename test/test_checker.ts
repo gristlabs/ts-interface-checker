@@ -337,21 +337,21 @@ function suite() {
       }
     })
 
-    assert.throws(() => 
+    assert.throws(() =>
         SameKeyIntersection.check({
           x: {
             foo: 'foo',
           }
         }), /bar is missing/);
 
-    assert.throws(() => 
+    assert.throws(() =>
         SameKeyIntersection.check({
           x: {
             bar: 1,
           }
         }), /foo is missing/);
 
-    assert.throws(() => 
+    assert.throws(() =>
         SameKeyIntersection.check({
           x: {
             foo: 1,
@@ -735,6 +735,26 @@ function suite() {
       {"path": "value.c", "message": "is missing"},
     );
   });
+
+  it("should name array types in error messages", () => {
+    const {MixedArray, ArrayUnion, UnionWithUnnamedArray} = createCheckers(enumUnionTI);
+
+    MixedArray.check(['one', 'two', 'three']);
+    MixedArray.check(['one', 'two', 'three']);
+    MixedArray.check([1, 'two', 3]);
+    assert.throws(() => MixedArray.check([undefined]), "value[0] is none of string, number, string[]");
+
+    ArrayUnion.check(['one', 'two', 'three']);
+    ArrayUnion.check([1, 2, 3]);
+    ArrayUnion.check([true, false]);
+    assert.throws(() => ArrayUnion.check([undefined]), "value is none of string[], boolean[], number[], string[][]");
+
+    UnionWithUnnamedArray.check(['one', 'two', 'three']);
+    UnionWithUnnamedArray.check([1, 2, 3]);
+    UnionWithUnnamedArray.check(['one', false]);
+    assert.throws(() => UnionWithUnnamedArray.check([undefined]), "value is none of string[], number[], 1 more; value[0] is none of string, boolean");
+  });
+
 };
 
 
