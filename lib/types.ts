@@ -458,6 +458,7 @@ export class BasicType extends TType {
  */
 export const basicTypes: ITypeSuite = {
   any:        new BasicType((v) => true, "is invalid"),
+  unknown:    new BasicType((v) => true, "is invalid"),
   number:     new BasicType((v) => (typeof v === "number"), "is not a number"),
   object:     new BasicType((v) => (typeof v === "object" && v), "is not an object"),
   boolean:    new BasicType((v) => (typeof v === "boolean"), "is not a boolean"),

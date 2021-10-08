@@ -395,6 +395,7 @@ function suite() {
     const {Type, Never} = createCheckers({
       Type: t.iface([], {
         any: "any",
+        unknown: "unknown",
         myNumber: "number",
         object: "object",
         boolean: "boolean",
@@ -413,7 +414,8 @@ function suite() {
     });
     Type.check({
       any:        1,
-      myNumber:     1,
+      unknown:    1,
+      myNumber:   1,
       object:     {},
       boolean:    true,
       string:     "x",
