@@ -7,7 +7,7 @@ import {DetailContext, IErrorDetail, NoopContext} from "./util";
 export {
   TArray, TEnumType, TEnumLiteral, TFunc, TIface, TLiteral, TName, TOptional, TParam, TParamList,
   TProp, TTuple, TType, TUnion, TIntersection,
-  array, enumlit, enumtype, func, iface, lit, name, opt, param, tuple, union, intersection,
+  array, enumlit, enumtype, func, iface, lit, name, opt, param, tuple, union, intersection, rest,
   indexKey,
   BasicType, ITypeSuite,
 } from "./types";
