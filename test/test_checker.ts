@@ -203,6 +203,29 @@ function suite() {
     assert.throws(() => Type.strictCheck(["x", 4, "bar", "baz"]), "value[3] is extraneous");
   });
 
+  it("should support rest types in tuples", () => {
+    const {Type} = createCheckers({
+      Type: t.tuple("string", t.rest(t.array("number"))),
+    });
+    Type.check(["hello"]);
+    Type.check(["hello", 1]);
+    Type.check(["hello", 1, 2]);
+    assert.throws(() => Type.check(undefined), "value is not an array");
+    assert.throws(() => Type.check([]), "value[0] is not a string");
+    assert.throws(() => Type.check([1]), "value[0] is not a string");
+    assert.throws(() => Type.check([1, "hello"]), "value[0] is not a string");
+    assert.throws(() => Type.check(["foo", "hello"]), "value[1] is not a number");
+    assert.throws(() => Type.check(["foo", 1, "hello"]), "value[2] is not a number");
+  });
+
+  it("should fail for a rest type not containing an array", () => {
+    const typeSuite = {
+      num: t.opt("number"),
+      Type: t.tuple("string", t.rest("num")),
+    };
+    assert.throws(() => createCheckers(typeSuite), "Rest type must be an array");
+  });
+
   it("should support arrays", () => {
     const {Type} = createCheckers({Type: t.array(t.iface([], {foo: "string"}))});
     Type.check([]);

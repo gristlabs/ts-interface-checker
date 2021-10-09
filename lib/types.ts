@@ -126,13 +126,56 @@ export class TArray extends TType {
 }
 
 /**
+ * Defines a rest type, e.g. tuple('string', rest(array('number'))).
+ */
+export function rest(typeSpec: TypeSpec): RestType {
+  return new RestType(typeSpec);
+}
+export class RestType extends TType{
+  private _start?: number;
+  constructor(public typeSpec: TypeSpec) { super(); }
+
+  setStart(start: number) {
+    this._start = start;
+  }
+
+  getChecker(suite: ITypeSuite, strict: boolean): CheckerFunc {
+    const arrType = typeof this.typeSpec === "string" ? getNamedType(suite, this.typeSpec) : this.typeSpec;
+    if (!(arrType instanceof TArray)) {
+      throw new Error("Rest type must be an array");
+    }
+    const itemChecker = arrType.ttype.getChecker(suite, strict);
+    const start = this._start!;
+    return (value: any, ctx: IContext) => {
+      for (let i = start; i < value.length; i++) {
+        if (!itemChecker(value[i], ctx)) {
+          return ctx.fail(i, null, 1);
+        }
+      }
+      return true;
+    }
+  }
+}
+
+/**
  * Defines a tuple type, e.g. tuple('string', 'number').
  */
 export function tuple(...typeSpec: TypeSpec[]): TTuple {
   return new TTuple(typeSpec.map((t) => parseSpec(t)));
 }
 export class TTuple extends TType {
-  constructor(public ttypes: TType[]) { super(); }
+
+  private _restType?: RestType;
+
+  constructor(public ttypes: TType[]) {
+    super();
+    const last = ttypes[ttypes.length - 1];
+    if (last instanceof RestType) {
+      ttypes.pop();
+      this._restType = last;
+      this._restType.setStart(ttypes.length);
+    }
+  }
 
   public getChecker(suite: ITypeSuite, strict: boolean): CheckerFunc {
     const itemCheckers = this.ttypes.map((t) => t.getChecker(suite, strict));
@@ -144,6 +187,13 @@ export class TTuple extends TType {
       }
       return true;
     };
+
+    if (this._restType) {
+      const restChecker = this._restType.getChecker(suite, strict);
+      return (value: any, ctx: IContext) => {
+        return checker(value, ctx) && restChecker(value, ctx);
+      }
+    }
 
     if (!strict) { return checker; }
 
