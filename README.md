@@ -173,7 +173,7 @@ const checker = createCheckers(fooTI) as {Square: CheckerT<Square>};
 
 const unk: unknown = {size: 1, color: "green"};
 
-if (checker.Square.test(unk)) {
+if (checkers.Square.test(unk)) {
   // TypeScript is now aware that unk implements Square, and allows member access.
   console.log(unk.size);
 }
