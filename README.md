@@ -169,7 +169,7 @@ import {Square} from "./foo";
 import fooTI from "./foo-ti";
 import {createCheckers, CheckerT} from "ts-interface-checker";
 
-const checker = createCheckers(fooTI) as {Square: CheckerT<Square>};
+const checkers = createCheckers(fooTI) as {Square: CheckerT<Square>};
 
 const unk: unknown = {size: 1, color: "green"};
 
