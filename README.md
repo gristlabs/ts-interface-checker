@@ -169,11 +169,11 @@ import {Square} from "./foo";
 import fooTI from "./foo-ti";
 import {createCheckers, CheckerT} from "ts-interface-checker";
 
-const {Square} = createCheckers(fooTI) as {Square: CheckerT<Square>};
+const checker = createCheckers(fooTI) as {Square: CheckerT<Square>};
 
 const unk: unknown = {size: 1, color: "green"};
 
-if (Square.test(unk)) {
+if (checker.Square.test(unk)) {
   // TypeScript is now aware that unk implements Square, and allows member access.
   console.log(unk.size);
 }
